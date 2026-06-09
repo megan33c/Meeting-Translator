@@ -6,13 +6,16 @@
     <title>Business Intelligence | Meeting Translation System</title>
     <style>
         :root {
-            --bg-color: #0b0f19; 
-            --panel-bg: #131a26; 
-            --border-color: #2e3c51; 
-            --text-main: #f1f5f9; 
-            --text-sub: #94a3b8; 
-            --accent-cyan: #38bdf8; 
-            --accent-report: #0ea5e9; 
+            --bg-color: #0b0f19;
+            --panel-bg: #131a26;
+            --panel-bg-2: #0f1720;
+            --border-color: #2e3c51;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --accent-cyan: #38bdf8;
+            --accent-report: #0ea5e9;
+            --accent-action: #818cf8;
+            --accent-green: #34d399;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -27,93 +30,189 @@
             min-height: 100vh;
             padding: 20px;
             letter-spacing: 0.5px;
-            overflow-y: auto; 
         }
 
-        header { width: 100%; max-width: 700px; padding: 10px 0 25px; border-bottom: 1px solid var(--border-color); margin-bottom: 25px; }
+        header {
+            width: 100%; max-width: 1200px;
+            padding: 10px 0 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
         header h1 { font-size: 18px; font-weight: 500; text-transform: uppercase; color: var(--text-main); }
         header p { font-size: 11px; color: var(--accent-cyan); text-transform: uppercase; margin-top: 4px; }
 
-        .lang-selector-box {
-            width: 100%; max-width: 700px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+        .top-bar {
+            width: 100%; max-width: 1200px;
+            display: flex; align-items: center; gap: 16px;
+            margin-bottom: 16px;
         }
+        .lang-selector-box { display: flex; align-items: center; gap: 12px; flex: 1; }
         .lang-selector-box label { font-size: 12px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; min-width: 45px; }
         .lang-selector-box select {
             flex-grow: 1; background: var(--panel-bg); border: 1px solid var(--border-color);
-            color: var(--text-main); padding: 12px; border-radius: 4px; font-size: 13px; outline: none;
-            cursor: pointer;
-        }
-
-        .container {
-            width: 100%; max-width: 700px; background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 4px; display: flex; flex-direction: column; 
-            height: 450px; 
-            margin-bottom: 25px; position: relative;
-        }
-
-        .container::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+            color: var(--text-main); padding: 10px 14px; border-radius: 4px; font-size: 13px; outline: none; cursor: pointer;
         }
 
         .status-bar {
-            display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;
             font-size: 12px; color: var(--text-sub); border-bottom: 1px solid var(--border-color);
-            text-transform: uppercase; background: rgba(0, 0, 0, 0.2);
+            text-transform: uppercase; background: rgba(0,0,0,0.2); flex-shrink: 0;
         }
         .status-dot { width: 6px; height: 6px; background-color: #475569; border-radius: 0; margin-right: 8px; display: inline-block; }
         .status-dot.active { background-color: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .output-area {
-            flex-grow: 1; overflow-y: auto; font-size: 15px; line-height: 1.8; padding: 25px;
-            color: var(--text-main); background: rgba(0, 0, 0, 0.1);
+        /* Main split layout */
+        .main-layout {
+            width: 100%; max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
         }
-        .placeholder { color: var(--text-sub); font-size: 13px; text-align: center; margin-top: 60px; line-height: 2; }
 
-        .controls { width: 100%; max-width: 700px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
-        .btn-group-main { display: flex; gap: 12px; width: 100%; }
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex; flex-direction: column;
+            height: 520px;
+            position: relative;
+            overflow: hidden;
+        }
+        .panel::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+        }
+        .panel-transcript::before { background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent); }
+        .panel-report::before { background: linear-gradient(90deg, transparent, var(--accent-action), transparent); }
 
+        .panel-header {
+            padding: 14px 20px; border-bottom: 1px solid var(--border-color);
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+            background: rgba(0,0,0,0.15);
+        }
+        .panel-transcript .panel-header { color: var(--accent-cyan); }
+        .panel-report .panel-header { color: var(--accent-action); }
+
+        .panel-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .panel-transcript .panel-dot { background: var(--accent-cyan); }
+        .panel-report .panel-dot { background: var(--accent-action); }
+
+        .panel-body {
+            flex: 1; overflow-y: auto; padding: 20px;
+            font-size: 14px; line-height: 1.8;
+            background: rgba(0,0,0,0.08);
+        }
+        .panel-body::-webkit-scrollbar { width: 4px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+        .placeholder { color: var(--text-sub); font-size: 12px; text-align: center; margin-top: 60px; line-height: 2.2; }
+
+        /* Right panel split into report + actions */
+        .panel-report .panel-body {
+            padding: 0;
+            display: flex; flex-direction: column;
+        }
+        .report-section {
+            flex: 1; overflow-y: auto; padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .actions-section {
+            flex: 1; overflow-y: auto; padding: 20px;
+        }
+        .section-label {
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-sub); margin-bottom: 12px;
+        }
+
+        /* Translation blocks */
+        .translation-block {
+            margin-bottom: 20px; border-left: 2px solid var(--accent-cyan);
+            padding-left: 14px; animation: fadeIn 0.3s ease;
+        }
+        .translation-time { font-size: 10px; color: var(--accent-cyan); margin-bottom: 3px; font-family: monospace; }
+
+        /* Report content */
+        .report-content h1 { font-size: 14px; color: var(--accent-action); margin-bottom: 12px; }
+        .report-content h3 { font-size: 12px; color: var(--accent-action); margin: 16px 0 8px; text-transform: uppercase; }
+        .report-content p { font-size: 13px; color: var(--text-main); line-height: 1.7; }
+        .report-content hr { border: none; border-top: 1px solid rgba(129,140,248,0.15); margin: 14px 0; }
+
+        /* Action items */
+        .action-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 12px; margin-bottom: 8px;
+            background: rgba(129,140,248,0.05);
+            border: 1px solid rgba(129,140,248,0.15);
+            border-radius: 4px; animation: fadeIn 0.3s ease;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .action-item:hover { background: rgba(129,140,248,0.1); }
+        .action-item.done { opacity: 0.5; }
+        .action-item.done .action-text { text-decoration: line-through; }
+        .action-checkbox {
+            width: 16px; height: 16px; flex-shrink: 0;
+            border: 1px solid var(--accent-action); border-radius: 2px;
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 2px; font-size: 10px; color: var(--accent-action);
+        }
+        .action-text { font-size: 13px; color: var(--text-main); line-height: 1.6; }
+
+        /* Controls */
+        .controls { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-group-main { display: flex; gap: 12px; }
         .btn {
-            border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.02); color: var(--text-main);
-            padding: 16px; font-size: 13px; font-weight: 600; cursor: pointer; text-transform: uppercase;
-            transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center;
-            border-radius: 4px; min-height: 50px;
+            border: 1px solid var(--border-color); background: rgba(255,255,255,0.02);
+            color: var(--text-main); padding: 16px; font-size: 12px; font-weight: 700;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.2s ease; flex: 1; display: flex; align-items: center;
+            justify-content: center; border-radius: 4px; min-height: 50px; gap: 8px;
         }
-        
-        .btn-primary { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(56, 189, 248, 0.03); }
-        .btn-primary:hover { background: rgba(56, 189, 248, 0.08); }
-        
-        .btn-danger { display: none; border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.05); }
-        
-        .btn-success { background: var(--accent-report); border: none; color: white; }
+        .btn-primary { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(56,189,248,0.03); }
+        .btn-primary:hover { background: rgba(56,189,248,0.08); }
+        .btn-danger { display: none; border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.05); }
+        .btn-danger:hover { background: rgba(239,68,68,0.1); }
+        .btn-success { background: var(--accent-report); border-color: var(--accent-report); color: white; }
         .btn-success:hover { background: #0284c7; }
-
-        .btn-secondary { font-size: 11px; color: #64748b; border: none; background: transparent; padding: 10px; cursor: pointer; text-align: center; width: 100%; }
+        .btn-secondary { font-size: 11px; color: #64748b; border: none; background: transparent; padding: 8px; cursor: pointer; text-align: center; }
         .btn-secondary:hover { color: var(--text-sub); }
 
-        .translation-block { margin-bottom: 25px; border-left: 2px solid var(--accent-cyan); padding-left: 15px; animation: fadeIn 0.3s ease; }
-        .translation-time { font-size: 11px; color: var(--accent-cyan); margin-bottom: 4px; font-family: monospace; }
-
-        .report-block {
-            margin-top: 25px; padding: 25px; background: rgba(14, 165, 233, 0.03); 
-            border: 1px solid var(--accent-cyan); border-radius: 4px; animation: fadeIn 0.5s ease;
-        }
-        .report-block h1 { font-size: 18px; color: var(--accent-cyan); margin-bottom: 20px; text-align: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .report-block h3 { font-size: 14px; color: var(--accent-cyan); margin: 25px 0 10px; text-transform: uppercase; border-bottom: 1px solid rgba(56, 189, 248, 0.1); padding-bottom: 4px; }
-        .report-block li { font-size: 14px; color: var(--text-main); margin-bottom: 10px; list-style-type: square; margin-left: 15px; }
+        /* Recording indicator */
+        .rec-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .panel { height: 380px; }
+        }
     </style>
 </head>
 <body>
 
-    <header>
+<header>
+    <div>
         <h1>Compal Server | AI Intelligence</h1>
         <p>Information Empowered - Real-time Translation System</p>
-    </header>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:11px; color:var(--text-sub); text-transform:uppercase;">System Status</div>
+        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:4px;">
+            <span id="status-indicator" class="status-dot"></span>
+            <span id="status-text" style="font-size:13px;color:var(--text-main);">Ready</span>
+            <span style="color:var(--border-color);">|</span>
+            <span id="live-timer" style="font-family:monospace;font-size:13px;color:var(--accent-cyan);">00:00:00</span>
+        </div>
+    </div>
+</header>
 
+<div class="top-bar">
     <div class="lang-selector-box">
         <label>Mode</label>
         <select id="lang-select">
@@ -121,177 +220,276 @@
             <option value="en-US">International (Pure English Only)</option>
         </select>
     </div>
+</div>
 
-    <div class="container">
-        <div class="status-bar">
-            <div>System Status: <span id="status-text">Ready</span></div>
-            <div style="display: flex; align-items: center;"><span id="status-indicator" class="status-dot"></span><span id="live-timer">00:00:00</span></div>
+<div class="main-layout">
+
+    <!-- Left: Live Transcript -->
+    <div class="panel panel-transcript">
+        <div class="panel-header">
+            <span class="panel-dot"></span>
+            即時逐字稿 · Live Transcript
         </div>
-        
-        <div class="output-area" id="output-area">
-            <div class="placeholder" id="placeholder">
-                [ SYSTEM INITIALIZED ]<br><br>
-                1. 選擇上方會議模式 (Mode)<br>
-                2. 點擊下方「START RECORDING」開始進行會議即時口譯<br>
-                3. 會議結束時，點擊「GENERATE REPORT」即可產出決議報告
+        <div class="panel-body" id="transcript-area">
+            <div class="placeholder" id="placeholder-transcript">
+                等待錄音開始<br><br>點擊「START RECORDING」<br>語音將即時翻譯顯示於此
             </div>
         </div>
     </div>
 
-    <div class="controls">
-        <div class="btn-group-main">
-            <button class="btn btn-primary" id="start-btn">Start Recording</button>
-            <button class="btn btn-danger" id="stop-btn">Stop Recording</button>
-            <button class="btn btn-success" id="report-btn">Generate Report</button>
+    <!-- Right: Report + Actions -->
+    <div class="panel panel-report">
+        <div class="panel-header">
+            <span class="panel-dot"></span>
+            會議記錄 · Meeting Report
         </div>
-        <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
+        <div class="panel-body">
+
+            <div class="report-section" id="report-section">
+                <div class="section-label">會議摘要 · Summary & Key Decisions</div>
+                <div id="report-content">
+                    <div class="placeholder" id="placeholder-report" style="margin-top:30px;">
+                        會議結束後<br>點擊「GENERATE REPORT」<br>自動產出摘要與決議
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions-section" id="actions-section">
+                <div class="section-label">行動方案 · Action Items</div>
+                <div id="actions-content">
+                    <div class="placeholder" id="placeholder-actions" style="margin-top:20px;">
+                        Action Items<br>將列於此處
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
-    <script>
-        let recognition;
-        let isRecording = false;
-        let timerInterval;
-        let startTime;
+</div>
 
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const reportBtn = document.getElementById('report-btn');
-        const clearBtn = document.getElementById('clear-btn');
-        const langSelect = document.getElementById('lang-select');
-        const outputArea = document.getElementById('output-area');
-        const placeholder = document.getElementById('placeholder');
-        const statusText = document.getElementById('status-text');
-        const statusIndicator = document.getElementById('status-indicator');
-        const liveTimer = document.getElementById('live-timer');
+<div class="controls">
+    <div class="btn-group-main">
+        <button class="btn btn-primary" id="start-btn">▶ Start Recording</button>
+        <button class="btn btn-danger" id="stop-btn"><span class="rec-dot"></span> Stop Recording</button>
+        <button class="btn btn-success" id="report-btn">⚡ Generate Report</button>
+    </div>
+    <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
+</div>
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = false;
+<script>
+    let recognition;
+    let isRecording = false;
+    let timerInterval;
+    let startTime;
 
-            recognition.onresult = async (event) => {
-                const lastResultIndex = event.results.length - 1;
-                const speechText = event.results[lastResultIndex][0].transcript;
-                if (speechText.trim() !== '') {
-                    statusText.innerText = 'Processing...';
-                    await sendToFlowise(speechText, false);
-                }
-            };
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const reportBtn = document.getElementById('report-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const langSelect = document.getElementById('lang-select');
+    const transcriptArea = document.getElementById('transcript-area');
+    const reportContent = document.getElementById('report-content');
+    const actionsContent = document.getElementById('actions-content');
+    const statusText = document.getElementById('status-text');
+    const statusIndicator = document.getElementById('status-indicator');
+    const liveTimer = document.getElementById('live-timer');
 
-            // 修正：加入權限防禦與狀態隔離
-            recognition.onend = () => { if (isRecording) recognition.start(); };
-            
-            recognition.onerror = (err) => {
-                console.error('語音辨識錯誤:', err.error);
-                if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
-                    isRecording = false;
-                    statusText.innerText = 'Permission Denied';
-                    alert('麥克風權限被阻擋，請點擊網址列左側鎖頭開啟權限後重新整理。');
-                    location.reload(); 
-                } else {
-                    statusText.innerText = 'Mic Error - Waiting...';
-                }
-            };
-        } else {
-            alert('您的瀏覽器不支援語音辨識。');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        recognition.onresult = async (event) => {
+            const lastResultIndex = event.results.length - 1;
+            const speechText = event.results[lastResultIndex][0].transcript;
+            if (speechText.trim() !== '') {
+                statusText.innerText = 'Processing...';
+                await sendToFlowise(speechText, false);
+            }
+        };
+
+        recognition.onend = () => { if (isRecording) recognition.start(); };
+
+        recognition.onerror = (err) => {
+            console.error('語音辨識錯誤:', err.error);
+            if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+                isRecording = false;
+                statusText.innerText = 'Permission Denied';
+                alert('麥克風權限被阻擋，請點擊網址列左側鎖頭開啟權限後重新整理。');
+                location.reload();
+            } else {
+                statusText.innerText = 'Mic Error - Waiting...';
+            }
+        };
+    } else {
+        alert('您的瀏覽器不支援語音辨識。');
+    }
+
+    startBtn.addEventListener('click', () => {
+        if (!recognition) return;
+        recognition.lang = langSelect.value;
+        isRecording = true;
+        try {
+            recognition.start();
+            langSelect.disabled = true;
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'flex';
+            statusText.innerText = 'Listening...';
+            statusIndicator.classList.add('active');
+            document.getElementById('placeholder-transcript').style.display = 'none';
+
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const diff = Date.now() - startTime;
+                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                liveTimer.innerText = `${h}:${m}:${s}`;
+            }, 1000);
+        } catch (e) {
+            alert('麥克風啟動失敗，請檢查瀏覽器設定是否封鎖了麥克風權限。');
         }
+    });
 
-        startBtn.addEventListener('click', () => {
-            if (!recognition) return;
-            recognition.lang = langSelect.value;
-            isRecording = true;
-            try {
-                recognition.start();
-                langSelect.disabled = true;
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'flex';
+    stopBtn.addEventListener('click', () => {
+        isRecording = false;
+        if (recognition) recognition.stop();
+        langSelect.disabled = false;
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'flex';
+        statusText.innerText = 'Paused';
+        statusIndicator.classList.remove('active');
+        clearInterval(timerInterval);
+    });
+
+    reportBtn.addEventListener('click', async () => {
+        if (isRecording) stopBtn.click();
+        statusText.innerText = 'Compiling AI Report...';
+        document.getElementById('placeholder-report').style.display = 'none';
+        document.getElementById('placeholder-actions').style.display = 'none';
+        reportContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;animation:pulse 1s infinite;">正在生成報告...</div>';
+        actionsContent.innerHTML = '';
+        await sendToFlowise('【請產生正式會議紀錄】', true);
+    });
+
+    clearBtn.addEventListener('click', () => {
+        transcriptArea.innerHTML = '<div class="placeholder">[ SYSTEM RESET ]<br>系統記憶已清空，準備就緒。</div>';
+        reportContent.innerHTML = '<div class="placeholder" style="margin-top:30px;">會議結束後<br>點擊「GENERATE REPORT」<br>自動產出摘要與決議</div>';
+        actionsContent.innerHTML = '<div class="placeholder" style="margin-top:20px;">Action Items<br>將列於此處</div>';
+        liveTimer.innerText = '00:00:00';
+        if (!isRecording) statusText.innerText = 'Ready';
+    });
+
+    async function sendToFlowise(text, isReportRequest) {
+        const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/c1c80b1d-648b-44ab-8044-cbedc6f11b48";
+        try {
+            const response = await fetch(flowiseUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: text })
+            });
+            const data = await response.json();
+            const resultText = data.text || data;
+            if (isReportRequest) {
+                displayReport(resultText);
+                statusText.innerText = 'Report Generated';
+            } else {
+                displayTranslation(resultText);
                 statusText.innerText = 'Listening...';
-                statusIndicator.classList.add('active');
-                if(placeholder) placeholder.style.display = 'none';
-                
-                startTime = Date.now();
-                timerInterval = setInterval(() => {
-                    const diff = Date.now() - startTime;
-                    const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                    liveTimer.innerText = `${h}:${m}:${s}`;
-                }, 1000);
-            } catch (e) {
-                alert('麥克風啟動失敗，請檢查瀏覽器設定是否封鎖了麥克風權限。');
+            }
+        } catch (error) {
+            statusText.innerText = 'Connection Error';
+            console.error(error);
+        }
+    }
+
+    function displayTranslation(text) {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const block = document.createElement('div');
+        block.className = 'translation-block';
+        block.innerHTML = `<div class="translation-time">${timeStr}</div><div>${text}</div>`;
+        transcriptArea.appendChild(block);
+        transcriptArea.scrollTop = transcriptArea.scrollHeight;
+    }
+
+    function displayReport(rawText) {
+        // Split by [SECTION_SPLIT] into sections
+        const sections = rawText.split('[SECTION_SPLIT]');
+
+        // Section 0+1: Summary + Key Decisions → left report panel
+        // Section 2: Action Items → right actions panel
+        let summaryHtml = '';
+        let actionsRaw = '';
+
+        sections.forEach((section, idx) => {
+            const cleaned = section.trim();
+            if (!cleaned) return;
+
+            if (idx < sections.length - 1) {
+                // Summary / Key Decisions sections
+                summaryHtml += parseMarkdown(cleaned) + '<hr>';
+            } else {
+                // Last section = Action Items
+                actionsRaw = cleaned;
             }
         });
 
-        stopBtn.addEventListener('click', () => {
-            isRecording = false;
-            if (recognition) recognition.stop();
-            langSelect.disabled = false;
-            stopBtn.style.display = 'none';
-            startBtn.style.display = 'flex';
-            statusText.innerText = 'Paused';
-            statusIndicator.classList.remove('active');
-            clearInterval(timerInterval);
-        });
+        // If no SECTION_SPLIT found, put everything in summary
+        if (sections.length === 1) {
+            summaryHtml = parseMarkdown(rawText);
+            actionsRaw = '';
+        }
 
-        reportBtn.addEventListener('click', async () => {
-            if (isRecording) stopBtn.click();
-            statusText.innerText = 'Compiling AI Report...';
-            await sendToFlowise('【請產生正式會議紀錄】', true);
-        });
+        // Render summary
+        const reportDiv = document.createElement('div');
+        reportDiv.className = 'report-content';
+        reportDiv.innerHTML = summaryHtml;
+        reportContent.innerHTML = '';
+        reportContent.appendChild(reportDiv);
 
-        clearBtn.addEventListener('click', () => {
-            outputArea.innerHTML = '<div class="placeholder">[ SYSTEM RESET ]<br>系統記憶已清空，準備就緒。</div>';
-            liveTimer.innerText = '00:00:00';
-            if (!isRecording) statusText.innerText = 'Ready';
-        });
-
-        /* 關鍵修正：調整發送給 Flowise 的 Payload，將 question 改為 input，完美對接後台大腦 */
-        async function sendToFlowise(text, isReportRequest) {
-            const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/c1c80b1d-648b-44ab-8044-cbedc6f11b48";
-            try {
-                const response = await fetch(flowiseUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ input: text }) /* 這裡修正為 input */
-                });
-                const data = await response.json();
-                const resultText = data.text || data;
-                if (isReportRequest) {
-                    displayReport(resultText);
-                    statusText.innerText = 'Report Generated';
-                } else {
-                    displayTranslation(resultText);
-                    statusText.innerText = 'Listening...';
+        // Render action items as checkboxes
+        actionsContent.innerHTML = '';
+        if (actionsRaw) {
+            const lines = actionsRaw.split('\n');
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                // Match lines like "[ ] 待辦事項：..." or "- ..."
+                const isAction = trimmed.startsWith('[ ]') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
+                if (isAction) {
+                    const text = trimmed.replace(/^\[ \]\s*/, '').replace(/^[-*]\s*/, '');
+                    const item = document.createElement('div');
+                    item.className = 'action-item';
+                    item.innerHTML = `<div class="action-checkbox">✓</div><div class="action-text">${text}</div>`;
+                    item.addEventListener('click', () => item.classList.toggle('done'));
+                    actionsContent.appendChild(item);
+                } else if (!trimmed.match(/^#{1,3}\s/)) {
+                    // Plain text line under action items
+                    const item = document.createElement('div');
+                    item.className = 'action-item';
+                    item.innerHTML = `<div class="action-checkbox">✓</div><div class="action-text">${trimmed}</div>`;
+                    item.addEventListener('click', () => item.classList.toggle('done'));
+                    actionsContent.appendChild(item);
                 }
-            } catch (error) {
-                statusText.innerText = 'Connection Error';
-                console.error(error);
-            }
+            });
         }
 
-        function displayTranslation(text) {
-            const now = new Date();
-            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-            const block = document.createElement('div');
-            block.className = 'translation-block';
-            block.innerHTML = `<div class="translation-time">${timeStr}</div><div>${text}</div>`;
-            outputArea.appendChild(block);
-            outputArea.scrollTop = outputArea.scrollHeight;
-        }
+        reportContent.scrollTop = 0;
+        actionsContent.scrollTop = 0;
+    }
 
-        function displayReport(markdownText) {
-            const reportContainer = document.createElement('div');
-            reportContainer.className = 'report-block';
-            let htmlResult = markdownText
-                .replace(/^# (.*)$/gm, '<h1>$1</h1>')
-                .replace(/^### (.*)$/gm, '<h3>$1</h3>')
-                .replace(/^[-*] (.*)$/gm, '<li>$1</li>');
-            htmlResult = htmlResult.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-            reportContainer.innerHTML = htmlResult;
-            outputArea.appendChild(reportContainer);
-            outputArea.scrollTop = outputArea.scrollHeight;
-        }
-    </script>
+    function parseMarkdown(text) {
+        return text
+            .replace(/^# (.*)$/gm, '<h1>$1</h1>')
+            .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.*)$/gm, '<h3>$1</h3>')
+            .replace(/^[-*] (.*)$/gm, '<li>$1</li>')
+            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+            .replace(/\n\n/g, '<br>');
+    }
+</script>
 </body>
 </html>
