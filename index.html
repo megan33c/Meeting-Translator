@@ -387,8 +387,12 @@
         try {
             const response = await fetch(flowiseUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ input: text })
+                mode: 'cors',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ question: text })
             });
             const data = await response.json();
             const resultText = data.text || data;
