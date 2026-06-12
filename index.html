@@ -278,7 +278,6 @@
 </div>
 
 <script>
-    let recognition;
     let isRecording = false;
     let timerInterval;
     let startTime;
@@ -296,10 +295,19 @@
     const liveTimer = document.getElementById('live-timer');
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    let mediaStream = null;
+    let audioContext = null;
+    let recognition = null;
+
+    function setupRecognition() {
+        if (!SpeechRecognition) {
+            alert('您的瀏覽器不支援語音辨識。');
+            return;
+        }
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = false;
+        recognition.lang = langSelect.value;
 
         recognition.onresult = async (event) => {
             const lastResultIndex = event.results.length - 1;
@@ -314,48 +322,91 @@
 
         recognition.onerror = (err) => {
             console.error('語音辨識錯誤:', err.error);
-            if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
-                isRecording = false;
-                statusText.innerText = 'Permission Denied';
-                alert('麥克風權限被阻擋，請點擊網址列左側鎖頭開啟權限後重新整理。');
-                location.reload();
-            } else {
-                statusText.innerText = 'Mic Error - Waiting...';
-            }
+            statusText.innerText = 'Mic Error - Waiting...';
         };
-    } else {
-        alert('您的瀏覽器不支援語音辨識。');
     }
 
-    startBtn.addEventListener('click', () => {
-        if (!recognition) return;
-        recognition.lang = langSelect.value;
+    startBtn.addEventListener('click', async () => {
         isRecording = true;
-        try {
-            recognition.start();
-            langSelect.disabled = true;
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'flex';
-            statusText.innerText = 'Listening...';
-            statusIndicator.classList.add('active');
-            document.getElementById('placeholder-transcript').style.display = 'none';
+        langSelect.disabled = true;
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'flex';
+        statusIndicator.classList.add('active');
+        document.getElementById('placeholder-transcript').style.display = 'none';
 
-            startTime = Date.now();
-            timerInterval = setInterval(() => {
-                const diff = Date.now() - startTime;
-                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                liveTimer.innerText = `${h}:${m}:${s}`;
-            }, 1000);
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const diff = Date.now() - startTime;
+            const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            liveTimer.innerText = `${h}:${m}:${s}`;
+        }, 1000);
+
+        try {
+            // 同時捕捉系統音訊和麥克風
+            statusText.innerText = '請選擇要錄製的視窗...';
+
+            // 1. 捕捉系統音訊（Teams 對方聲音）
+            mediaStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    sampleRate: 44100
+                }
+            });
+
+            // 2. 捕捉麥克風（你自己的聲音）
+            let micStream = null;
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch(micErr) {
+                console.warn('麥克風捕捉失敗，只用系統音訊', micErr);
+            }
+
+            // 3. 合併兩個音訊來源
+            audioContext = new AudioContext();
+            const destination = audioContext.createMediaStreamDestination();
+
+            const systemSource = audioContext.createMediaStreamSource(mediaStream);
+            systemSource.connect(destination);
+
+            if (micStream) {
+                const micSource = audioContext.createMediaStreamSource(micStream);
+                micSource.connect(destination);
+            }
+
+            // 4. 用合併後的音訊做語音辨識
+            setupRecognition();
+            recognition.lang = langSelect.value;
+            recognition.start();
+            statusText.innerText = 'Listening...';
+
+            // 監聽視窗分享停止
+            mediaStream.getVideoTracks()[0].onended = () => {
+                if (isRecording) stopBtn.click();
+            };
+
         } catch (e) {
-            alert('麥克風啟動失敗，請檢查瀏覽器設定是否封鎖了麥克風權限。');
+            console.error('getDisplayMedia 失敗，改用麥克風:', e);
+            // 降級使用麥克風
+            setupRecognition();
+            recognition.lang = langSelect.value;
+            try {
+                recognition.start();
+                statusText.innerText = 'Listening (Mic)...';
+            } catch(e2) {
+                statusText.innerText = 'Error';
+            }
         }
     });
 
     stopBtn.addEventListener('click', () => {
         isRecording = false;
-        if (recognition) recognition.stop();
+        if (recognition) { recognition.stop(); recognition = null; }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
         langSelect.disabled = false;
         stopBtn.style.display = 'none';
         startBtn.style.display = 'flex';
