@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/flowise/:path*",
+      "destination": "https://flowise-production-a44d.up.railway.app/api/:path*"
+    }
+  ]
+}
