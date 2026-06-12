@@ -465,7 +465,22 @@
         const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         const block = document.createElement('div');
         block.className = 'translation-block';
-        block.innerHTML = `<div class="translation-time">${timeStr}</div><div>${text}</div>`;
+
+        const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
+        const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
+
+        if (originalMatch && translationMatch) {
+            const original = originalMatch[1].trim();
+            const translation = translationMatch[1].trim();
+            block.innerHTML = `
+                <div class="translation-time">${timeStr}</div>
+                <div class="original-text" style="color:var(--text-sub);font-size:13px;margin-bottom:4px;">📝 ${original}</div>
+                <div class="translated-text" style="color:var(--text-main);font-size:14px;">🔤 ${translation}</div>
+            `;
+        } else {
+            block.innerHTML = `<div class="translation-time">${timeStr}</div><div>${text}</div>`;
+        }
+
         transcriptArea.appendChild(block);
         transcriptArea.scrollTop = transcriptArea.scrollHeight;
     }
