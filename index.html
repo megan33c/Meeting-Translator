@@ -404,9 +404,26 @@
 
         statusText.innerText = 'Connecting...';
 
-        // 1. 麥克風辨識（你的聲音）
+        // 1. 麥克風辨識（你的聲音）- 使用 getUserMedia 串流
         try {
-            const micConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+            const micStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+            });
+            const micPushStream = SpeechSDK.AudioInputStream.createPushStream();
+            const micAudioCtx = new AudioContext({ sampleRate: 16000 });
+            const micSource = micAudioCtx.createMediaStreamSource(micStream);
+            const micProcessor = micAudioCtx.createScriptProcessor(4096, 1, 1);
+            micProcessor.onaudioprocess = (e) => {
+                const float32 = e.inputBuffer.getChannelData(0);
+                const int16 = new Int16Array(float32.length);
+                for (let i = 0; i < float32.length; i++) {
+                    int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
+                }
+                micPushStream.write(int16.buffer);
+            };
+            micSource.connect(micProcessor);
+            micProcessor.connect(micAudioCtx.destination);
+            const micConfig = SpeechSDK.AudioConfig.fromStreamInput(micPushStream);
             recognizerMic = createRecognizer(micConfig, 'MIC');
             recognizerMic.startContinuousRecognitionAsync(
                 () => { statusText.innerText = 'Listening...'; },
@@ -414,6 +431,7 @@
             );
         } catch(e) {
             console.error('麥克風啟動失敗:', e);
+            statusText.innerText = 'Mic Error';
         }
 
         // 2. 系統音訊辨識（Teams 對方聲音）
