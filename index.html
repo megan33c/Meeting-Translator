@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Business Intelligence | Meeting Translation System</title>
+    <!-- Azure Speech SDK -->
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -63,7 +65,6 @@
         .status-dot.active { background-color: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-        /* Main split layout */
         .main-layout {
             width: 100%; max-width: 1200px;
             display: grid;
@@ -96,9 +97,7 @@
         .panel-transcript .panel-header { color: var(--accent-cyan); }
         .panel-report .panel-header { color: var(--accent-action); }
 
-        .panel-dot {
-            width: 6px; height: 6px; border-radius: 50%;
-        }
+        .panel-dot { width: 6px; height: 6px; border-radius: 50%; }
         .panel-transcript .panel-dot { background: var(--accent-cyan); }
         .panel-report .panel-dot { background: var(--accent-action); }
 
@@ -113,37 +112,26 @@
 
         .placeholder { color: var(--text-sub); font-size: 12px; text-align: center; margin-top: 60px; line-height: 2.2; }
 
-        /* Right panel split into report + actions */
-        .panel-report .panel-body {
-            padding: 0;
-            display: flex; flex-direction: column;
-        }
-        .report-section {
-            flex: 1; overflow-y: auto; padding: 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .actions-section {
-            flex: 1; overflow-y: auto; padding: 20px;
-        }
+        .panel-report .panel-body { padding: 0; display: flex; flex-direction: column; }
+        .report-section { flex: 1; overflow-y: auto; padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .actions-section { flex: 1; overflow-y: auto; padding: 20px; }
         .section-label {
             font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
             color: var(--text-sub); margin-bottom: 12px;
         }
 
-        /* Translation blocks */
         .translation-block {
             margin-bottom: 20px; border-left: 2px solid var(--accent-cyan);
             padding-left: 14px; animation: fadeIn 0.3s ease;
         }
         .translation-time { font-size: 10px; color: var(--accent-cyan); margin-bottom: 3px; font-family: monospace; }
+        .speaker-label { font-size: 10px; color: var(--accent-green); margin-bottom: 3px; font-family: monospace; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Report content */
         .report-content h1 { font-size: 14px; color: var(--accent-action); margin-bottom: 12px; }
         .report-content h3 { font-size: 12px; color: var(--accent-action); margin: 16px 0 8px; text-transform: uppercase; }
         .report-content p { font-size: 13px; color: var(--text-main); line-height: 1.7; }
         .report-content hr { border: none; border-top: 1px solid rgba(129,140,248,0.15); margin: 14px 0; }
 
-        /* Action items */
         .action-item {
             display: flex; align-items: flex-start; gap: 10px;
             padding: 10px 12px; margin-bottom: 8px;
@@ -163,7 +151,6 @@
         }
         .action-text { font-size: 13px; color: var(--text-main); line-height: 1.6; }
 
-        /* Controls */
         .controls { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 10px; }
         .btn-group-main { display: flex; gap: 12px; }
         .btn {
@@ -182,15 +169,46 @@
         .btn-secondary { font-size: 11px; color: #64748b; border: none; background: transparent; padding: 8px; cursor: pointer; text-align: center; }
         .btn-secondary:hover { color: var(--text-sub); }
 
-        /* Recording indicator */
         .rec-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite; }
+
+        /* Azure key setup banner */
+        .setup-banner {
+            width: 100%; max-width: 1200px;
+            background: rgba(56,189,248,0.05);
+            border: 1px solid rgba(56,189,248,0.2);
+            border-radius: 4px;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .setup-banner input {
+            flex: 1; background: var(--panel-bg); border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 8px 12px; border-radius: 4px; font-size: 12px;
+            outline: none; font-family: monospace;
+        }
+        .setup-banner select {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 8px 12px; border-radius: 4px; font-size: 12px;
+            outline: none; cursor: pointer;
+        }
+        .setup-banner button {
+            background: rgba(56,189,248,0.1); border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan); padding: 8px 16px; border-radius: 4px;
+            font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+            letter-spacing: 1px; white-space: nowrap;
+        }
+        .setup-banner button:hover { background: rgba(56,189,248,0.2); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .main-layout { grid-template-columns: 1fr; }
             .panel { height: 380px; }
+            .setup-banner { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -211,6 +229,20 @@
         </div>
     </div>
 </header>
+
+<!-- Azure Key Setup Banner -->
+<div class="setup-banner" id="setup-banner">
+    <span style="white-space:nowrap;color:var(--accent-cyan);font-weight:700;">AZURE KEY</span>
+    <input type="password" id="azure-key-input" placeholder="貼上 Azure Speech API Key..." />
+    <select id="azure-region-select">
+        <option value="eastasia">East Asia</option>
+        <option value="southeastasia">Southeast Asia</option>
+        <option value="japaneast">Japan East</option>
+        <option value="eastus">East US</option>
+        <option value="westeurope">West Europe</option>
+    </select>
+    <button onclick="saveAzureKey()">Save & Connect</button>
+</div>
 
 <div class="top-bar">
     <div class="lang-selector-box">
@@ -244,7 +276,6 @@
             會議記錄 · Meeting Report
         </div>
         <div class="panel-body">
-
             <div class="report-section" id="report-section">
                 <div class="section-label">會議摘要 · Summary & Key Decisions</div>
                 <div id="report-content">
@@ -253,7 +284,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="actions-section" id="actions-section">
                 <div class="section-label">行動方案 · Action Items</div>
                 <div id="actions-content">
@@ -262,7 +292,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -278,9 +307,36 @@
 </div>
 
 <script>
+    // ── Azure Key Management ──────────────────────────────────────────
+    let AZURE_KEY = localStorage.getItem('azure_speech_key') || '';
+    let AZURE_REGION = localStorage.getItem('azure_speech_region') || 'eastasia';
+
+    function saveAzureKey() {
+        const key = document.getElementById('azure-key-input').value.trim();
+        const region = document.getElementById('azure-region-select').value;
+        if (!key) { alert('請輸入 Azure API Key'); return; }
+        AZURE_KEY = key;
+        AZURE_REGION = region;
+        localStorage.setItem('azure_speech_key', key);
+        localStorage.setItem('azure_speech_region', region);
+        document.getElementById('setup-banner').style.display = 'none';
+        document.getElementById('status-text').innerText = 'Azure Connected ✓';
+        setTimeout(() => { document.getElementById('status-text').innerText = 'Ready'; }, 2000);
+    }
+
+    // Hide banner if key already saved
+    if (AZURE_KEY) {
+        document.getElementById('setup-banner').style.display = 'none';
+        document.getElementById('azure-region-select').value = AZURE_REGION;
+    }
+
+    // ── App State ─────────────────────────────────────────────────────
     let isRecording = false;
     let timerInterval;
     let startTime;
+    let recognizerMic = null;
+    let recognizerSystem = null;
+    let systemStream = null;
 
     const startBtn = document.getElementById('start-btn');
     const stopBtn = document.getElementById('stop-btn');
@@ -294,39 +350,42 @@
     const statusIndicator = document.getElementById('status-indicator');
     const liveTimer = document.getElementById('live-timer');
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let mediaStream = null;
-    let audioContext = null;
-    let recognition = null;
+    // ── Azure Speech Recognizer Factory ───────────────────────────────
+    function createRecognizer(audioConfig, label) {
+        const lang = langSelect.value;
+        const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(AZURE_KEY, AZURE_REGION);
 
-    function setupRecognition() {
-        if (!SpeechRecognition) {
-            alert('您的瀏覽器不支援語音辨識。');
-            return;
-        }
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = false;
-        recognition.lang = langSelect.value;
+        // Auto-detect Chinese + English
+        const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(['zh-TW', 'en-US', 'zh-CN']);
+        const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig);
 
-        recognition.onresult = async (event) => {
-            const lastResultIndex = event.results.length - 1;
-            const speechText = event.results[lastResultIndex][0].transcript;
-            if (speechText.trim() !== '') {
-                statusText.innerText = 'Processing...';
-                await sendToFlowise(speechText, false);
+        recognizer.recognized = async (s, e) => {
+            if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                const text = e.result.text.trim();
+                if (text && text !== '.') {
+                    statusText.innerText = 'Processing...';
+                    await sendToFlowise(text, false, label);
+                }
             }
         };
 
-        recognition.onend = () => { if (isRecording) recognition.start(); };
-
-        recognition.onerror = (err) => {
-            console.error('語音辨識錯誤:', err.error);
-            statusText.innerText = 'Mic Error - Waiting...';
+        recognizer.canceled = (s, e) => {
+            console.error(`[${label}] Azure canceled:`, e.errorDetails);
+            if (label === 'MIC') statusText.innerText = 'Mic Error';
         };
+
+        return recognizer;
     }
 
+    // ── Start Recording ───────────────────────────────────────────────
     startBtn.addEventListener('click', async () => {
+        if (!AZURE_KEY) {
+            document.getElementById('setup-banner').style.display = 'flex';
+            document.getElementById('azure-key-input').focus();
+            statusText.innerText = 'Please enter Azure Key first';
+            return;
+        }
+
         isRecording = true;
         langSelect.disabled = true;
         startBtn.style.display = 'none';
@@ -343,35 +402,88 @@
             liveTimer.innerText = `${h}:${m}:${s}`;
         }, 1000);
 
-        try {
-            // 直接使用 CABLE Output（Voicemeeter 混音後的音訊，包含麥克風 + Teams）
-            statusText.innerText = 'Connecting to audio...';
+        statusText.innerText = 'Connecting...';
 
-            mediaStream = await navigator.mediaDevices.getUserMedia({
+        // 1. 麥克風辨識（你的聲音）
+        try {
+            const micConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+            recognizerMic = createRecognizer(micConfig, 'MIC');
+            recognizerMic.startContinuousRecognitionAsync(
+                () => { statusText.innerText = 'Listening...'; },
+                (err) => { console.error('Mic recognizer error:', err); statusText.innerText = 'Mic Error'; }
+            );
+        } catch(e) {
+            console.error('麥克風啟動失敗:', e);
+        }
+
+        // 2. 系統音訊辨識（Teams 對方聲音）
+        try {
+            systemStream = await navigator.mediaDevices.getDisplayMedia({
+                video: false,
                 audio: {
                     echoCancellation: false,
                     noiseSuppression: false,
-                    autoGainControl: false,
-                    sampleRate: 48000
+                    sampleRate: 16000
                 }
             });
 
-            setupRecognition();
-            recognition.lang = langSelect.value;
-            recognition.start();
-            statusText.innerText = 'Listening...';
+            const systemConfig = SpeechSDK.AudioConfig.fromStreamInput(
+                SpeechSDK.AudioInputStream.createPushStream()
+            );
 
-        } catch (e) {
-            console.error('音訊捕捉失敗:', e);
-            statusText.innerText = 'Audio Error - Check Chrome mic settings';
+            // Connect MediaStream to Azure push stream
+            const pushStream = SpeechSDK.AudioInputStream.createPushStream();
+            const audioCtx = new AudioContext({ sampleRate: 16000 });
+            const source = audioCtx.createMediaStreamSource(systemStream);
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                const float32 = e.inputBuffer.getChannelData(0);
+                const int16 = new Int16Array(float32.length);
+                for (let i = 0; i < float32.length; i++) {
+                    int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
+                }
+                pushStream.write(int16.buffer);
+            };
+
+            source.connect(processor);
+            processor.connect(audioCtx.destination);
+
+            const sysAudioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
+            recognizerSystem = createRecognizer(sysAudioConfig, 'TEAMS');
+            recognizerSystem.startContinuousRecognitionAsync(
+                () => { console.log('Teams audio recognizer started'); },
+                (err) => { console.error('System recognizer error:', err); }
+            );
+
+            systemStream.getAudioTracks()[0].onended = () => {
+                if (isRecording) {
+                    console.log('System audio track ended');
+                    statusText.innerText = 'Listening (Mic only)...';
+                }
+            };
+
+        } catch(e) {
+            console.warn('系統音訊捕捉跳過（使用者取消或不支援）:', e.message);
+            statusText.innerText = 'Listening (Mic only)...';
         }
     });
 
+    // ── Stop Recording ────────────────────────────────────────────────
     stopBtn.addEventListener('click', () => {
         isRecording = false;
-        if (recognition) { recognition.stop(); recognition = null; }
-        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-        if (audioContext) { audioContext.close(); audioContext = null; }
+
+        if (recognizerMic) {
+            recognizerMic.stopContinuousRecognitionAsync(() => { recognizerMic.close(); recognizerMic = null; });
+        }
+        if (recognizerSystem) {
+            recognizerSystem.stopContinuousRecognitionAsync(() => { recognizerSystem.close(); recognizerSystem = null; });
+        }
+        if (systemStream) {
+            systemStream.getTracks().forEach(t => t.stop());
+            systemStream = null;
+        }
+
         langSelect.disabled = false;
         stopBtn.style.display = 'none';
         startBtn.style.display = 'flex';
@@ -380,6 +492,7 @@
         clearInterval(timerInterval);
     });
 
+    // ── Generate Report ───────────────────────────────────────────────
     reportBtn.addEventListener('click', async () => {
         if (isRecording) stopBtn.click();
         statusText.innerText = 'Compiling AI Report...';
@@ -390,6 +503,7 @@
         await sendToFlowise('【請產生正式會議紀錄】', true);
     });
 
+    // ── Clear ─────────────────────────────────────────────────────────
     clearBtn.addEventListener('click', () => {
         transcriptArea.innerHTML = '<div class="placeholder">[ SYSTEM RESET ]<br>系統記憶已清空，準備就緒。</div>';
         reportContent.innerHTML = '<div class="placeholder" style="margin-top:30px;">會議結束後<br>點擊「GENERATE REPORT」<br>自動產出摘要與決議</div>';
@@ -398,13 +512,14 @@
         if (!isRecording) statusText.innerText = 'Ready';
     });
 
-    async function sendToFlowise(text, isReportRequest) {
+    // ── Flowise API ───────────────────────────────────────────────────
+    async function sendToFlowise(text, isReportRequest, speakerLabel) {
         const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
         try {
             const response = await fetch(flowiseUrl, {
                 method: 'POST',
                 mode: 'cors',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
@@ -416,7 +531,7 @@
                 displayReport(resultText);
                 statusText.innerText = 'Report Generated';
             } else {
-                displayTranslation(resultText);
+                displayTranslation(resultText, speakerLabel);
                 statusText.innerText = 'Listening...';
             }
         } catch (error) {
@@ -425,7 +540,8 @@
         }
     }
 
-    function displayTranslation(text) {
+    // ── Display Translation ───────────────────────────────────────────
+    function displayTranslation(text, speakerLabel) {
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         const block = document.createElement('div');
@@ -434,78 +550,67 @@
         const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
         const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
 
+        const speakerHtml = speakerLabel
+            ? `<div class="speaker-label">${speakerLabel === 'MIC' ? '🎤 You' : '👥 Teams'}</div>`
+            : '';
+
         if (originalMatch && translationMatch) {
             const original = originalMatch[1].trim();
             const translation = translationMatch[1].trim();
             block.innerHTML = `
                 <div class="translation-time">${timeStr}</div>
+                ${speakerHtml}
                 <div class="original-text" style="color:var(--text-sub);font-size:13px;margin-bottom:4px;">📝 ${original}</div>
                 <div class="translated-text" style="color:var(--text-main);font-size:14px;">🔤 ${translation}</div>
             `;
         } else {
-            block.innerHTML = `<div class="translation-time">${timeStr}</div><div>${text}</div>`;
+            block.innerHTML = `<div class="translation-time">${timeStr}</div>${speakerHtml}<div>${text}</div>`;
         }
 
         transcriptArea.appendChild(block);
         transcriptArea.scrollTop = transcriptArea.scrollHeight;
     }
 
+    // ── Display Report ────────────────────────────────────────────────
     function displayReport(rawText) {
-        // Split by [SECTION_SPLIT] into sections
         const sections = rawText.split('[SECTION_SPLIT]');
-
-        // Section 0+1: Summary + Key Decisions → left report panel
-        // Section 2: Action Items → right actions panel
         let summaryHtml = '';
         let actionsRaw = '';
 
         sections.forEach((section, idx) => {
             const cleaned = section.trim();
             if (!cleaned) return;
-
             if (idx < sections.length - 1) {
-                // Summary / Key Decisions sections
                 summaryHtml += parseMarkdown(cleaned) + '<hr>';
             } else {
-                // Last section = Action Items
                 actionsRaw = cleaned;
             }
         });
 
-        // If no SECTION_SPLIT found, put everything in summary
         if (sections.length === 1) {
             summaryHtml = parseMarkdown(rawText);
             actionsRaw = '';
         }
 
-        // Render summary
         const reportDiv = document.createElement('div');
         reportDiv.className = 'report-content';
         reportDiv.innerHTML = summaryHtml;
         reportContent.innerHTML = '';
         reportContent.appendChild(reportDiv);
 
-        // Render action items as checkboxes
         actionsContent.innerHTML = '';
         if (actionsRaw) {
             const lines = actionsRaw.split('\n');
             lines.forEach(line => {
                 const trimmed = line.trim();
                 if (!trimmed) return;
-                // Match lines like "[ ] 待辦事項：..." or "- ..."
                 const isAction = trimmed.startsWith('[ ]') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
-                if (isAction) {
+                if (isAction || !trimmed.match(/^#{1,3}\s/)) {
                     const text = trimmed.replace(/^\[ \]\s*/, '').replace(/^[-*]\s*/, '');
+                    if (!text) return;
                     const item = document.createElement('div');
                     item.className = 'action-item';
                     item.innerHTML = `<div class="action-checkbox">✓</div><div class="action-text">${text}</div>`;
-                    item.addEventListener('click', () => item.classList.toggle('done'));
-                    actionsContent.appendChild(item);
-                } else if (!trimmed.match(/^#{1,3}\s/)) {
-                    // Plain text line under action items
-                    const item = document.createElement('div');
-                    item.className = 'action-item';
-                    item.innerHTML = `<div class="action-checkbox">✓</div><div class="action-text">${trimmed}</div>`;
                     item.addEventListener('click', () => item.classList.toggle('done'));
                     actionsContent.appendChild(item);
                 }
@@ -516,6 +621,7 @@
         actionsContent.scrollTop = 0;
     }
 
+    // ── Markdown Parser ───────────────────────────────────────────────
     function parseMarkdown(text) {
         return text
             .replace(/^# (.*)$/gm, '<h1>$1</h1>')
