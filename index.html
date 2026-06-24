@@ -121,11 +121,101 @@
         }
 
         .translation-block {
-            margin-bottom: 20px; border-left: 2px solid var(--accent-cyan);
-            padding-left: 14px; animation: fadeIn 0.3s ease;
+            margin-bottom: 8px; padding: 7px 0 7px 10px;
+            border-left: 2px solid var(--border-color);
+            animation: fadeIn 0.3s ease;
         }
-        .translation-time { font-size: 10px; color: var(--accent-cyan); margin-bottom: 3px; font-family: monospace; }
-        .speaker-label { font-size: 10px; color: var(--accent-green); margin-bottom: 3px; font-family: monospace; text-transform: uppercase; letter-spacing: 1px; }
+        .translation-block.by-you { border-left-color: var(--accent-cyan); }
+        .translation-meta {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 3px;
+        }
+        .translation-time { font-size: 10px; color: var(--text-sub); font-family: monospace; }
+
+        /* YOU - static badge */
+        .badge-you {
+            font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 2px;
+            background: rgba(56,189,248,0.12); color: var(--accent-cyan);
+            letter-spacing: 0.5px; user-select: none;
+        }
+
+        /* Empty - clickable dashed */
+        .badge-empty {
+            font-size: 10px; padding: 1px 8px; border-radius: 2px;
+            border: 1px dashed rgba(100,116,139,0.35);
+            color: var(--text-sub); cursor: pointer;
+            display: inline-flex; align-items: center; gap: 4px;
+            transition: all 0.15s; user-select: none;
+        }
+        .badge-empty:hover { border-color: var(--accent-green); color: var(--accent-green); background: rgba(52,211,153,0.05); }
+
+        /* Named - filled green */
+        .badge-named {
+            font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 2px;
+            background: rgba(52,211,153,0.1); color: var(--accent-green);
+            border: 1px solid rgba(52,211,153,0.2);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+            transition: all 0.15s; user-select: none;
+        }
+        .badge-named:hover { background: rgba(52,211,153,0.18); }
+        .badge-chevron { font-size: 8px; opacity: 0.5; }
+
+        /* Dropdown */
+        .speaker-dropdown {
+            position: fixed; z-index: 9999;
+            background: #1a2535; border: 1px solid var(--accent-cyan);
+            border-radius: 4px; min-width: 160px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+        .speaker-dropdown-section { padding: 4px 0; }
+        .speaker-dropdown-section + .speaker-dropdown-section { border-top: 1px solid var(--border-color); }
+        .speaker-dropdown-section-label {
+            font-size: 9px; color: var(--text-sub); text-transform: uppercase;
+            letter-spacing: 1px; padding: 4px 12px 2px;
+        }
+        .speaker-dropdown-item {
+            padding: 7px 12px; font-size: 12px; cursor: pointer; color: var(--text-main);
+            display: flex; align-items: center; gap: 8px; transition: background 0.1s;
+        }
+        .speaker-dropdown-item:hover { background: rgba(56,189,248,0.08); color: var(--accent-cyan); }
+        .speaker-dropdown-item .pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+        .original-text { font-size: 13px; color: var(--text-sub); margin-bottom: 1px; line-height: 1.5; }
+        .translated-text { font-size: 13px; color: var(--text-main); line-height: 1.5; }
+
+        /* Attendee panel */
+        .attendee-bar {
+            width: 100%; max-width: 1200px;
+            background: rgba(52,211,153,0.04);
+            border: 1px solid rgba(52,211,153,0.15);
+            border-radius: 4px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .attendee-label { font-size: 11px; color: var(--accent-green); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+        .attendee-tags { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; align-items: center; }
+        .attendee-tag {
+            font-size: 11px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+            color: var(--accent-green); padding: 3px 10px; border-radius: 3px;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .attendee-tag-remove { cursor: pointer; opacity: 0.6; font-size: 13px; line-height: 1; }
+        .attendee-tag-remove:hover { opacity: 1; }
+        .attendee-input-group { display: flex; gap: 6px; align-items: center; }
+        .attendee-input {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            color: var(--text-main); padding: 5px 10px; border-radius: 4px;
+            font-size: 12px; outline: none; width: 130px;
+        }
+        .attendee-input:focus { border-color: var(--accent-green); }
+        .attendee-add-btn {
+            background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3);
+            color: var(--accent-green); padding: 5px 12px; border-radius: 4px;
+            font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+            letter-spacing: 0.5px; white-space: nowrap;
+        }
+        .attendee-add-btn:hover { background: rgba(52,211,153,0.2); }
 
         .report-content h1 { font-size: 14px; color: var(--accent-action); margin-bottom: 12px; }
         .report-content h3 { font-size: 12px; color: var(--accent-action); margin: 16px 0 8px; text-transform: uppercase; }
@@ -251,6 +341,18 @@
             <option value="zh-TW">Multilingual (Mixed Chinese/English)</option>
             <option value="en-US">International (Pure English Only)</option>
         </select>
+    </div>
+</div>
+
+<!-- Attendee Bar -->
+<div class="attendee-bar">
+    <span class="attendee-label">與會人員</span>
+    <div class="attendee-tags" id="attendee-tags">
+        <span style="font-size:11px;color:var(--text-sub);">尚未設定與會人員...</span>
+    </div>
+    <div class="attendee-input-group">
+        <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
+        <button class="attendee-add-btn" onclick="addAttendee()">+ Add</button>
     </div>
 </div>
 
@@ -518,7 +620,24 @@
         document.getElementById('placeholder-actions').style.display = 'none';
         reportContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;animation:pulse 1s infinite;">正在生成報告...</div>';
         actionsContent.innerHTML = '';
-        await sendToFlowise('【請產生正式會議紀錄】', true);
+        // 收集逐字稿（含說話者名字）
+        const blocks = transcriptArea.querySelectorAll('.translation-block');
+        let transcriptText = '';
+        blocks.forEach(block => {
+            const speaker = block.dataset.speaker || 'UNKNOWN';
+            const original = block.querySelector('.original-text');
+            const translated = block.querySelector('.translated-text');
+            if (original) {
+                transcriptText += `[${speaker}] ${original.textContent}\n`;
+                if (translated) transcriptText += `(譯文: ${translated.textContent})\n`;
+            }
+        });
+
+        const prompt = transcriptText
+            ? `【請根據以下會議逐字稿產生正式會議紀錄】\n\n${transcriptText}\n\n請產生：1.會議摘要 2.[SECTION_SPLIT] 3.Action Items（格式：[ ] 負責人：事項）`
+            : '【請產生正式會議紀錄】';
+
+        await sendToFlowise(prompt, true);
     });
 
     // ── Clear ─────────────────────────────────────────────────────────
@@ -558,31 +677,143 @@
         }
     }
 
+    // ── Attendee Management ───────────────────────────────────────────
+    let attendees = [];
+    let activeDropdown = null;
+
+    function addAttendee() {
+        const input = document.getElementById('attendee-input');
+        const name = input.value.trim();
+        if (!name || attendees.includes(name)) { input.value = ''; return; }
+        attendees.push(name);
+        renderAttendeeTags();
+        input.value = '';
+        input.focus();
+    }
+
+    document.getElementById('attendee-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addAttendee();
+    });
+
+    function removeAttendee(name) {
+        attendees = attendees.filter(a => a !== name);
+        renderAttendeeTags();
+    }
+
+    function renderAttendeeTags() {
+        const container = document.getElementById('attendee-tags');
+        if (attendees.length === 0) {
+            container.innerHTML = '<span style="font-size:11px;color:var(--text-sub);">尚未設定與會人員...</span>';
+            return;
+        }
+        container.innerHTML = attendees.map(name => `
+            <span class="attendee-tag">
+                ${name}
+                <span class="attendee-tag-remove" onclick="removeAttendee('${name}')">×</span>
+            </span>
+        `).join('');
+    }
+
+    function buildDropdown(badge, blockEl) {
+        if (activeDropdown) { activeDropdown.remove(); activeDropdown = null; }
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'speaker-dropdown';
+
+        // Default section
+        let html = `<div class="speaker-dropdown-section">`;
+        html += `<div class="speaker-dropdown-item" data-name="YOU"><span class="pip" style="background:var(--accent-cyan)"></span>YOU</div>`;
+        html += `</div>`;
+
+        // Attendees section
+        if (attendees.length > 0) {
+            html += `<div class="speaker-dropdown-section">`;
+            html += `<div class="speaker-dropdown-section-label">與會人員</div>`;
+            attendees.forEach(name => {
+                html += `<div class="speaker-dropdown-item" data-name="${name}"><span class="pip" style="background:var(--accent-green)"></span>${name}</div>`;
+            });
+            html += `</div>`;
+        }
+
+        dropdown.innerHTML = html;
+
+        const rect = badge.getBoundingClientRect();
+        dropdown.style.top = (rect.bottom + 4) + 'px';
+        dropdown.style.left = rect.left + 'px';
+
+        dropdown.querySelectorAll('.speaker-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = item.dataset.name;
+                blockEl.dataset.speaker = name;
+                updateBadge(badge, name);
+                dropdown.remove();
+                activeDropdown = null;
+            });
+        });
+
+        document.body.appendChild(dropdown);
+        activeDropdown = dropdown;
+
+        setTimeout(() => {
+            document.addEventListener('click', function handler(e) {
+                if (!dropdown.contains(e.target) && e.target !== badge) {
+                    dropdown.remove();
+                    activeDropdown = null;
+                    document.removeEventListener('click', handler);
+                }
+            });
+        }, 50);
+    }
+
+    function updateBadge(badge, name) {
+        if (name === 'YOU') {
+            badge.className = 'badge-you';
+            badge.innerHTML = 'YOU';
+            badge.style.cursor = 'default';
+            badge.onclick = null;
+        } else {
+            badge.className = 'badge-named';
+            badge.innerHTML = `${name} <span class="badge-chevron">▾</span>`;
+        }
+    }
+
     // ── Display Translation ───────────────────────────────────────────
     function displayTranslation(text, speakerLabel) {
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         const block = document.createElement('div');
-        block.className = 'translation-block';
+        const isMic = speakerLabel === 'MIC';
+        block.className = 'translation-block' + (isMic ? ' by-you' : '');
+        block.dataset.speaker = isMic ? 'YOU' : '';
 
-        const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
+        const originalMatch = text.match(/原文[：:]\s*(.+?)(?:
+|譯文|$)/s);
         const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
+        const original = originalMatch ? originalMatch[1].trim() : text;
+        const translation = translationMatch ? translationMatch[1].trim() : '';
 
-        const speakerHtml = speakerLabel
-            ? `<div class="speaker-label">${speakerLabel === 'MIC' ? '🎤 You' : '👥 Teams'}</div>`
-            : '';
+        // Badge HTML
+        const badgeHtml = isMic
+            ? `<span class="badge-you">YOU</span>`
+            : `<span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>`;
 
-        if (originalMatch && translationMatch) {
-            const original = originalMatch[1].trim();
-            const translation = translationMatch[1].trim();
-            block.innerHTML = `
-                <div class="translation-time">${timeStr}</div>
-                ${speakerHtml}
-                <div class="original-text" style="color:var(--text-sub);font-size:13px;margin-bottom:4px;">📝 ${original}</div>
-                <div class="translated-text" style="color:var(--text-main);font-size:14px;">🔤 ${translation}</div>
-            `;
-        } else {
-            block.innerHTML = `<div class="translation-time">${timeStr}</div>${speakerHtml}<div>${text}</div>`;
+        block.innerHTML = `
+            <div class="translation-meta">
+                <span class="translation-time">${timeStr}</span>
+                ${badgeHtml}
+            </div>
+            <div class="original-text">${original}</div>
+            ${translation ? `<div class="translated-text">${translation}</div>` : ''}
+        `;
+
+        // Only TEAMS blocks get click handler
+        if (!isMic) {
+            const badge = block.querySelector('.badge-empty, .badge-named');
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                buildDropdown(badge, block);
+            });
         }
 
         transcriptArea.appendChild(block);
