@@ -426,9 +426,11 @@
         setTimeout(() => { document.getElementById('status-text').innerText = 'Ready'; }, 2000);
     }
 
-    // Hide banner if key already saved
+    // Hide banner if key already saved; always restore region select
     if (AZURE_KEY) {
         document.getElementById('setup-banner').style.display = 'none';
+    }
+    if (AZURE_REGION) {
         document.getElementById('azure-region-select').value = AZURE_REGION;
     }
 
@@ -634,8 +636,8 @@
         });
 
         const prompt = transcriptText
-            ? `【請根據以下會議逐字稿產生正式會議紀錄】\n\n${transcriptText}\n\n請產生：1.會議摘要 2.[SECTION_SPLIT] 3.Action Items（格式：[ ] 負責人：事項）`
-            : '【請產生正式會議紀錄】';
+            ? `【請根據以下會議逐字稿產生正式會議紀錄】\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
+            : '【請產生空白會議紀錄範本，包含會議摘要與 [SECTION_SPLIT] 以及 Action Items 區塊】';
 
         await sendToFlowise(prompt, true);
     });
@@ -787,8 +789,7 @@
         block.className = 'translation-block' + (isMic ? ' by-you' : '');
         block.dataset.speaker = isMic ? 'YOU' : '';
 
-        const originalMatch = text.match(/原文[：:]\s*(.+?)(?:
-|譯文|$)/s);
+        const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
         const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
         const original = originalMatch ? originalMatch[1].trim() : text;
         const translation = translationMatch ? translationMatch[1].trim() : '';
@@ -853,9 +854,8 @@
             lines.forEach(line => {
                 const trimmed = line.trim();
                 if (!trimmed) return;
-                const isAction = trimmed.startsWith('[ ]') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
-                if (isAction || !trimmed.match(/^#{1,3}\s/)) {
-                    const text = trimmed.replace(/^\[ \]\s*/, '').replace(/^[-*]\s*/, '');
+                if (trimmed.startsWith('[ ]') || trimmed.startsWith('- [ ]')) {
+                    const text = trimmed.replace(/^-?\s*\[ \]\s*/, '');
                     if (!text) return;
                     const item = document.createElement('div');
                     item.className = 'action-item';
@@ -864,6 +864,9 @@
                     actionsContent.appendChild(item);
                 }
             });
+        }
+        if (actionsContent.children.length === 0) {
+            actionsContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;padding:12px;">無 Action Items</div>';
         }
 
         reportContent.scrollTop = 0;
