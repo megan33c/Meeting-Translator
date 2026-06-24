@@ -8,16 +8,16 @@
     <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --panel-bg: #131a26;
-            --panel-bg-2: #0f1720;
-            --border-color: #2e3c51;
-            --text-main: #f1f5f9;
-            --text-sub: #94a3b8;
-            --accent-cyan: #38bdf8;
-            --accent-report: #0ea5e9;
-            --accent-action: #818cf8;
-            --accent-green: #34d399;
+            --bg-color: #080c14;
+            --panel-bg: rgba(10, 18, 32, 0.82);
+            --panel-bg-2: rgba(8, 14, 26, 0.85);
+            --border-color: #1e3a5f;
+            --text-main: #e2eaf6;
+            --text-sub: #7a9bbf;
+            --accent-cyan: #48c8ff;
+            --accent-report: #1ab0f0;
+            --accent-action: #9da8f8;
+            --accent-green: #3de8a8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -25,6 +25,11 @@
         body {
             font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
             background-color: var(--bg-color);
+            background-image: url('/Background.png');
+            background-size: cover;
+            background-position: center right;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
             color: var(--text-main);
             display: flex;
             flex-direction: column;
@@ -32,6 +37,20 @@
             min-height: 100vh;
             padding: 20px;
             letter-spacing: 0.5px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 10, 20, 0.72);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        header, .top-bar, .attendee-bar, .main-layout, .controls, .setup-banner {
+            position: relative;
+            z-index: 1;
         }
 
         header {
@@ -305,9 +324,12 @@
 <body>
 
 <header>
-    <div>
-        <h1>Compal Server | AI Intelligence</h1>
-        <p>Information Empowered - Real-time Translation System</p>
+    <div style="display:flex;align-items:center;gap:16px;">
+        <img src="/Compal.png" alt="Compal" style="height:36px;width:auto;object-fit:contain;filter:brightness(1.1);" />
+        <div>
+            <h1>Server | AI Intelligence</h1>
+            <p>Information Empowered - Real-time Translation System</p>
+        </div>
     </div>
     <div style="text-align:right;">
         <div style="font-size:11px; color:var(--text-sub); text-transform:uppercase;">System Status</div>
