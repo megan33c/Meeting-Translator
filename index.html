@@ -199,8 +199,21 @@
         .speaker-dropdown-item:hover { background: rgba(56,189,248,0.08); color: var(--accent-cyan); }
         .speaker-dropdown-item .pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
-        .original-text { font-size: 13px; color: var(--text-sub); margin-bottom: 1px; line-height: 1.5; }
-        .translated-text { font-size: 13px; color: var(--text-main); line-height: 1.5; }
+        .original-text { font-size: 13px; color: var(--text-sub); margin-bottom: 1px; line-height: 1.5; cursor: text; }
+        .translated-text { font-size: 13px; color: var(--text-main); line-height: 1.5; cursor: text; }
+        .original-text:hover, .translated-text:hover {
+            outline: 1px dashed rgba(72,200,255,0.3); border-radius: 2px;
+            background: rgba(72,200,255,0.03);
+        }
+        .original-text.editing, .translated-text.editing {
+            outline: 1px solid var(--accent-cyan); border-radius: 2px;
+            background: rgba(72,200,255,0.06); padding: 2px 4px;
+            cursor: text;
+        }
+        .edit-hint {
+            font-size: 10px; color: rgba(72,200,255,0.4); margin-left: 6px;
+            font-style: italic; pointer-events: none;
+        }
 
         /* Attendee panel */
         .attendee-bar {
@@ -802,6 +815,37 @@
         }
     }
 
+    // ── Inline Edit ───────────────────────────────────────────────────
+    function makeEditable(el) {
+        el.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            if (el.classList.contains('editing')) return;
+            el.classList.add('editing');
+            el.setAttribute('contenteditable', 'true');
+            el.focus();
+            // Move cursor to end
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
+        el.addEventListener('blur', () => {
+            el.classList.remove('editing');
+            el.removeAttribute('contenteditable');
+        });
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                el.blur();
+            }
+            if (e.key === 'Escape') {
+                el.blur();
+            }
+        });
+    }
+
     // ── Display Translation ───────────────────────────────────────────
     function displayTranslation(text, speakerLabel) {
         const now = new Date();
@@ -840,6 +884,10 @@
         }
 
         transcriptArea.appendChild(block);
+
+        // Make text fields double-click editable
+        block.querySelectorAll('.original-text, .translated-text').forEach(makeEditable);
+
         transcriptArea.scrollTop = transcriptArea.scrollHeight;
     }
 
