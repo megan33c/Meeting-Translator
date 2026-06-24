@@ -200,19 +200,18 @@
         .speaker-dropdown-item .pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
         .original-text { font-size: 13px; color: var(--text-sub); margin-bottom: 1px; line-height: 1.5; cursor: text; }
-        .translated-text { font-size: 13px; color: var(--text-main); line-height: 1.5; cursor: text; }
-        .original-text:hover, .translated-text:hover {
+        .translated-text { font-size: 13px; color: var(--text-main); line-height: 1.5; }
+        .original-text:hover {
             outline: 1px dashed rgba(72,200,255,0.3); border-radius: 2px;
             background: rgba(72,200,255,0.03);
         }
-        .original-text.editing, .translated-text.editing {
+        .original-text.editing {
             outline: 1px solid var(--accent-cyan); border-radius: 2px;
             background: rgba(72,200,255,0.06); padding: 2px 4px;
             cursor: text;
         }
-        .edit-hint {
-            font-size: 10px; color: rgba(72,200,255,0.4); margin-left: 6px;
-            font-style: italic; pointer-events: none;
+        .translated-text.translating {
+            opacity: 0.5; font-style: italic;
         }
 
         /* Attendee panel */
@@ -816,32 +815,54 @@
     }
 
     // ── Inline Edit ───────────────────────────────────────────────────
-    function makeEditable(el) {
-        el.addEventListener('dblclick', (e) => {
+    function makeEditable(originalEl, translatedEl) {
+        originalEl.addEventListener('dblclick', (e) => {
             e.stopPropagation();
-            if (el.classList.contains('editing')) return;
-            el.classList.add('editing');
-            el.setAttribute('contenteditable', 'true');
-            el.focus();
-            // Move cursor to end
+            if (originalEl.classList.contains('editing')) return;
+            originalEl.classList.add('editing');
+            originalEl.setAttribute('contenteditable', 'true');
+            originalEl.focus();
             const range = document.createRange();
-            range.selectNodeContents(el);
+            range.selectNodeContents(originalEl);
             range.collapse(false);
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
         });
-        el.addEventListener('blur', () => {
-            el.classList.remove('editing');
-            el.removeAttribute('contenteditable');
-        });
-        el.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                el.blur();
+
+        const saveEdit = async () => {
+            originalEl.classList.remove('editing');
+            originalEl.removeAttribute('contenteditable');
+            const newText = originalEl.textContent.trim();
+            if (!newText) return;
+            // Re-translate
+            if (translatedEl) {
+                translatedEl.classList.add('translating');
+                translatedEl.textContent = '翻譯中...';
+                try {
+                    const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+                    const response = await fetch(flowiseUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question: newText })
+                    });
+                    const data = await response.json();
+                    const result = typeof data === 'string' ? data : (data.text || data.output || data.answer || '');
+                    const translationMatch = result.match(/譯文[：:]\s*(.+?)$/s);
+                    translatedEl.textContent = translationMatch ? translationMatch[1].trim() : result;
+                } catch(err) {
+                    translatedEl.textContent = '（翻譯失敗）';
+                }
+                translatedEl.classList.remove('translating');
             }
+        };
+
+        originalEl.addEventListener('blur', saveEdit);
+        originalEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); originalEl.blur(); }
             if (e.key === 'Escape') {
-                el.blur();
+                originalEl.classList.remove('editing');
+                originalEl.removeAttribute('contenteditable');
             }
         });
     }
@@ -886,7 +907,9 @@
         transcriptArea.appendChild(block);
 
         // Make text fields double-click editable
-        block.querySelectorAll('.original-text, .translated-text').forEach(makeEditable);
+        const origEl = block.querySelector('.original-text');
+        const transEl = block.querySelector('.translated-text');
+        if (origEl) makeEditable(origEl, transEl);
 
         transcriptArea.scrollTop = transcriptArea.scrollHeight;
     }
