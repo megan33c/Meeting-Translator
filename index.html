@@ -109,7 +109,7 @@
 
         .panel-header {
             padding: 14px 20px; border-bottom: 1px solid var(--border-color);
-            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+            font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
             display: flex; align-items: center; gap: 8px; flex-shrink: 0;
             background: rgba(0,0,0,0.15);
         }
@@ -212,10 +212,10 @@
             margin-bottom: 16px;
             display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
         }
-        .attendee-label { font-size: 11px; color: var(--accent-green); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+        .attendee-label { font-size: 13px; color: var(--accent-green); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
         .attendee-tags { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; align-items: center; }
         .attendee-tag {
-            font-size: 11px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+            font-size: 13px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
             color: var(--accent-green); padding: 3px 10px; border-radius: 3px;
             display: flex; align-items: center; gap: 5px;
         }
@@ -231,7 +231,7 @@
         .attendee-add-btn {
             background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3);
             color: var(--accent-green); padding: 5px 12px; border-radius: 4px;
-            font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+            font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase;
             letter-spacing: 0.5px; white-space: nowrap;
         }
         .attendee-add-btn:hover { background: rgba(52,211,153,0.2); }
@@ -275,7 +275,7 @@
         .btn-danger:hover { background: rgba(239,68,68,0.1); }
         .btn-success { background: var(--accent-report); border-color: var(--accent-report); color: white; }
         .btn-success:hover { background: #0284c7; }
-        .btn-secondary { font-size: 11px; color: #64748b; border: none; background: transparent; padding: 8px; cursor: pointer; text-align: center; }
+        .btn-secondary { font-size: 13px; color: #64748b; border: none; background: transparent; padding: 8px; cursor: pointer; text-align: center; }
         .btn-secondary:hover { color: var(--text-sub); }
 
         .rec-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite; }
@@ -307,7 +307,7 @@
         .setup-banner button {
             background: rgba(56,189,248,0.1); border: 1px solid var(--accent-cyan);
             color: var(--accent-cyan); padding: 8px 16px; border-radius: 4px;
-            font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+            font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase;
             letter-spacing: 1px; white-space: nowrap;
         }
         .setup-banner button:hover { background: rgba(56,189,248,0.2); }
@@ -332,7 +332,7 @@
         </div>
     </div>
     <div style="text-align:right;">
-        <div style="font-size:11px; color:var(--text-sub); text-transform:uppercase;">System Status</div>
+        <div style="font-size:13px; color:var(--text-sub); text-transform:uppercase;">System Status</div>
         <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:4px;">
             <span id="status-indicator" class="status-dot"></span>
             <span id="status-text" style="font-size:13px;color:var(--text-main);">Ready</span>
@@ -370,7 +370,7 @@
 <div class="attendee-bar">
     <span class="attendee-label">與會人員</span>
     <div class="attendee-tags" id="attendee-tags">
-        <span style="font-size:11px;color:var(--text-sub);">尚未設定與會人員...</span>
+        <span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>
     </div>
     <div class="attendee-input-group">
         <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
@@ -727,7 +727,7 @@
     function renderAttendeeTags() {
         const container = document.getElementById('attendee-tags');
         if (attendees.length === 0) {
-            container.innerHTML = '<span style="font-size:11px;color:var(--text-sub);">尚未設定與會人員...</span>';
+            container.innerHTML = '<span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>';
             return;
         }
         container.innerHTML = attendees.map(name => `
