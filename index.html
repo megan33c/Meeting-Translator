@@ -326,14 +326,186 @@
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
+        .btn-export {
+            border-color: rgba(157,168,248,0.5); color: var(--accent-action);
+            background: rgba(129,140,248,0.04); flex: 0 0 auto; padding: 16px 24px;
+        }
+        .btn-export:hover { background: rgba(129,140,248,0.1); }
+
+        /* ── Mobile export icon buttons ── */
+        .btn-export-icon {
+            display: none; /* desktop: hidden, shown only on mobile */
+        }
+
         @media (max-width: 768px) {
             .main-layout { grid-template-columns: 1fr; }
             .panel { height: 380px; }
             .setup-banner { flex-direction: column; align-items: stretch; }
+
+            /* Controls: main buttons on row 1, clear + export icons on row 2 */
+            .controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .btn-group-main {
+                display: flex;
+                gap: 6px;
+                width: 100%;
+            }
+            .btn-group-main .btn { flex: 1; padding: 10px 6px; font-size: 11px; }
+
+            /* Hide full-text export buttons on mobile */
+            #export-btn, #export-txt-btn { display: none; }
+
+            /* Row 2: Clear (left) + PDF TXT icons (right) */
+            .controls-row2 {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                gap: 6px;
+            }
+            .controls-row2 .btn-secondary {
+                flex: 1;
+                padding: 9px 10px;
+                font-size: 11px;
+            }
+            .btn-export-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 34px;
+                border-radius: 6px;
+                border: 1px solid rgba(129,140,248,0.35);
+                background: rgba(129,140,248,0.06);
+                color: #a5b4fc;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                cursor: pointer;
+                flex-shrink: 0;
+                transition: background 0.15s;
+            }
+            .btn-export-icon:hover { background: rgba(129,140,248,0.14); }
+
+            /* Hide desktop-only clear on mobile */
+            #clear-btn { display: none; }
+        }
+
+        /* Hide mobile row2 on desktop */
+        .controls-row2 { display: none; }
+        @media (max-width: 768px) {
+            .controls-row2 { display: flex; }
+        }
+
+        /* ── Print / PDF Export ─────────────────────────────────── */
+        @media print {
+            /* Hide everything except content */
+            body {
+                background: #fff !important;
+                color: #111 !important;
+                padding: 0 !important;
+                font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            }
+            body::before { display: none !important; }
+
+            header, .setup-banner, .top-bar, .attendee-bar, .controls { display: none !important; }
+
+            .main-layout {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+            }
+
+            /* Print header injected via JS */
+            .print-header {
+                display: block !important;
+                padding: 0 0 16px 0;
+                border-bottom: 2px solid #1e3a5f;
+                margin-bottom: 20px;
+            }
+            .print-header h1 { font-size: 16px; font-weight: 700; color: #0a1e3a; text-transform: uppercase; letter-spacing: 1px; }
+            .print-header p  { font-size: 11px; color: #475569; margin-top: 4px; }
+
+            /* Panels: remove fixed height, show full content */
+            .panel {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                border: 1px solid #c8d8e8 !important;
+                background: #fff !important;
+                border-radius: 4px;
+                margin-bottom: 24px;
+                page-break-inside: avoid;
+            }
+
+            .panel-body {
+                overflow: visible !important;
+                max-height: none !important;
+                background: #fff !important;
+                color: #111 !important;
+                padding: 16px !important;
+            }
+
+            .panel-header {
+                background: #f0f5fa !important;
+                color: #0a1e3a !important;
+                border-bottom: 1px solid #c8d8e8 !important;
+                font-size: 11px !important;
+            }
+            .panel-transcript::before, .panel-report::before { display: none; }
+            .panel-dot { background: #0a1e3a !important; }
+
+            /* Transcript blocks */
+            .translation-block {
+                border-left-color: #94a3b8 !important;
+                margin-bottom: 10px;
+                padding: 6px 0 6px 10px;
+            }
+            .translation-block.by-you { border-left-color: #0ea5e9 !important; }
+            .original-text  { color: #475569 !important; font-size: 12px !important; }
+            .translated-text { color: #111 !important; font-size: 13px !important; }
+            .translation-time { color: #94a3b8 !important; }
+            .badge-you, .badge-named, .badge-empty { display: none !important; }
+
+            /* Report */
+            .report-section, .actions-section {
+                overflow: visible !important;
+                max-height: none !important;
+                border: none !important;
+                padding: 0 16px 16px !important;
+            }
+            .section-label { color: #475569 !important; font-size: 10px !important; margin-bottom: 10px; }
+            .report-content h1, .report-content h3 { color: #0a1e3a !important; }
+            .report-content p  { color: #111 !important; }
+            .report-content hr { border-top: 1px solid #e2e8f0 !important; }
+
+            /* Action items */
+            .action-item {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                page-break-inside: avoid;
+            }
+            .action-checkbox { border-color: #64748b !important; color: #64748b !important; }
+            .action-text { color: #111 !important; }
+            .action-item.done .action-text { text-decoration: line-through; color: #94a3b8 !important; }
+
+            /* Placeholders: hide */
+            .placeholder { display: none !important; }
+
+            /* Speaker dropdown: never print */
+            .speaker-dropdown { display: none !important; }
         }
     </style>
 </head>
 <body>
+
+<!-- Print-only header (hidden on screen) -->
+<div class="print-header" id="print-header" style="display:none;">
+    <h1>Compal · Server | AI Intelligence — Meeting Report</h1>
+    <p id="print-meta"></p>
+</div>
 
 <header>
     <div style="display:flex;align-items:center;gap:16px;">
@@ -438,8 +610,16 @@
         <button class="btn btn-primary" id="start-btn">▶ Start Recording</button>
         <button class="btn btn-danger" id="stop-btn"><span class="rec-dot"></span> Stop Recording</button>
         <button class="btn btn-success" id="report-btn">⚡ Generate Report</button>
+        <button class="btn btn-export" id="export-btn">Export PDF</button>
+        <button class="btn btn-export" id="export-txt-btn">Export TXT</button>
     </div>
     <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
+    <!-- Mobile row 2: Clear + PDF/TXT icon buttons -->
+    <div class="controls-row2">
+        <button class="btn btn-secondary" id="clear-btn-mobile">Clear System Memory</button>
+        <button class="btn-export-icon" id="export-btn-mobile">PDF</button>
+        <button class="btn-export-icon" id="export-txt-btn-mobile">TXT</button>
+    </div>
 </div>
 
 <script>
@@ -965,6 +1145,116 @@
         reportContent.scrollTop = 0;
         actionsContent.scrollTop = 0;
     }
+
+    // ── Export PDF ────────────────────────────────────────────────────
+    document.getElementById('export-btn').addEventListener('click', () => {
+        // Fill in print meta (date + timer)
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        const elapsed = document.getElementById('live-timer').innerText;
+        const attendeeList = attendees.length > 0 ? attendees.join('、') : '—';
+        document.getElementById('print-meta').textContent =
+            `匯出時間：${dateStr} ${timeStr}　|　會議時長：${elapsed}　|　與會人員：${attendeeList}`;
+
+        // Temporarily expand panels for full content capture
+        document.querySelectorAll('.panel, .panel-body, .report-section, .actions-section').forEach(el => {
+            el._overflowOrig = el.style.overflow;
+            el._heightOrig  = el.style.height;
+            el._maxHeightOrig = el.style.maxHeight;
+            el.style.overflow  = 'visible';
+            el.style.height    = 'auto';
+            el.style.maxHeight = 'none';
+        });
+
+        window.print();
+
+        // Restore after print dialog closes
+        setTimeout(() => {
+            document.querySelectorAll('.panel, .panel-body, .report-section, .actions-section').forEach(el => {
+                el.style.overflow  = el._overflowOrig  || '';
+                el.style.height    = el._heightOrig    || '';
+                el.style.maxHeight = el._maxHeightOrig || '';
+            });
+        }, 1000);
+    });
+
+    // ── Export TXT ────────────────────────────────────────────────────
+    document.getElementById('export-txt-btn').addEventListener('click', () => {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        const elapsed = document.getElementById('live-timer').innerText;
+        const attendeeList = attendees.length > 0 ? attendees.join('、') : '—';
+
+        let lines = [];
+
+        // Header
+        lines.push('Compal · Server | AI Intelligence — Meeting Report');
+        lines.push('='.repeat(52));
+        lines.push(`匯出時間：${dateStr} ${timeStr}`);
+        lines.push(`會議時長：${elapsed}`);
+        lines.push(`與會人員：${attendeeList}`);
+        lines.push('');
+
+        // Transcript
+        lines.push('【即時逐字稿 · LIVE TRANSCRIPT】');
+        lines.push('-'.repeat(52));
+        document.querySelectorAll('.translation-block').forEach(block => {
+            const time     = block.querySelector('.translation-time')?.innerText?.trim() || '';
+            const speaker  = block.querySelector('.badge-you, .badge-named, .badge-empty')?.innerText?.trim() || '';
+            const original = block.querySelector('.original-text')?.innerText?.trim() || '';
+            const translated = block.querySelector('.translated-text')?.innerText?.trim() || '';
+            if (original || translated) {
+                const speakerLabel = speaker ? `[${speaker}] ` : '';
+                lines.push(`${time}  ${speakerLabel}`);
+                if (original)    lines.push(`原文：${original}`);
+                if (translated)  lines.push(`譯文：${translated}`);
+                lines.push('');
+            }
+        });
+
+        // Report
+        const reportEl = document.querySelector('.report-content');
+        const actionsEl = document.querySelector('.actions-section');
+        if (reportEl && reportEl.innerText.trim()) {
+            lines.push('');
+            lines.push('【會議記錄 · MEETING REPORT】');
+            lines.push('-'.repeat(52));
+            lines.push(reportEl.innerText.trim());
+        }
+        if (actionsEl && actionsEl.innerText.trim()) {
+            lines.push('');
+            lines.push('【Action Items】');
+            lines.push('-'.repeat(52));
+            actionsEl.querySelectorAll('.action-item').forEach(item => {
+                const done = item.classList.contains('done') ? '[x]' : '[ ]';
+                const text = item.querySelector('.action-text')?.innerText?.trim() || '';
+                if (text) lines.push(`${done} ${text}`);
+            });
+        }
+
+        lines.push('');
+        lines.push('='.repeat(52));
+        lines.push('Generated by Compal Meeting Translator');
+
+        // Download
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `meeting-report_${dateStr.replace(/\//g, '-')}_${timeStr.replace(':', '')}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // ── Mobile button aliases ─────────────────────────────────────────
+    document.getElementById('clear-btn-mobile').addEventListener('click', () =>
+        document.getElementById('clear-btn').click());
+    document.getElementById('export-btn-mobile').addEventListener('click', () =>
+        document.getElementById('export-btn').click());
+    document.getElementById('export-txt-btn-mobile').addEventListener('click', () =>
+        document.getElementById('export-txt-btn').click());
 
     // ── Markdown Parser ───────────────────────────────────────────────
     function parseMarkdown(text) {
