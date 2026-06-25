@@ -399,6 +399,9 @@
         }
 
         /* ── Print / PDF Export ─────────────────────────────────── */
+        /* Hide print-header on screen */
+        .print-header { display: none; }
+
         @media print {
             /* Hide everything except content */
             body {
@@ -502,7 +505,7 @@
 <body>
 
 <!-- Print-only header (hidden on screen) -->
-<div class="print-header" id="print-header" style="display:none;">
+<div class="print-header" id="print-header">
     <h1>Compal · Server | AI Intelligence — Meeting Report</h1>
     <p id="print-meta"></p>
 </div>
@@ -1053,18 +1056,16 @@
         const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         const block = document.createElement('div');
         const isMic = speakerLabel === 'MIC';
-        block.className = 'translation-block' + (isMic ? ' by-you' : '');
-        block.dataset.speaker = isMic ? 'YOU' : '';
+        block.className = 'translation-block';
+        block.dataset.speaker = '';
 
         const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
         const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
         const original = originalMatch ? originalMatch[1].trim() : text;
         const translation = translationMatch ? translationMatch[1].trim() : '';
 
-        // Badge HTML
-        const badgeHtml = isMic
-            ? `<span class="badge-you">YOU</span>`
-            : `<span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>`;
+        // All blocks start with empty badge — user assigns manually
+        const badgeHtml = `<span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>`;
 
         block.innerHTML = `
             <div class="translation-meta">
@@ -1075,14 +1076,12 @@
             ${translation ? `<div class="translated-text">${translation}</div>` : ''}
         `;
 
-        // Only TEAMS blocks get click handler
-        if (!isMic) {
-            const badge = block.querySelector('.badge-empty, .badge-named');
-            badge.addEventListener('click', (e) => {
-                e.stopPropagation();
-                buildDropdown(badge, block);
-            });
-        }
+        // All blocks get click handler for speaker assignment
+        const badge = block.querySelector('.badge-empty, .badge-named');
+        badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            buildDropdown(badge, block);
+        });
 
         transcriptArea.appendChild(block);
 
@@ -1157,25 +1156,14 @@
         document.getElementById('print-meta').textContent =
             `匯出時間：${dateStr} ${timeStr}　|　會議時長：${elapsed}　|　與會人員：${attendeeList}`;
 
-        // Temporarily expand panels for full content capture
-        document.querySelectorAll('.panel, .panel-body, .report-section, .actions-section').forEach(el => {
-            el._overflowOrig = el.style.overflow;
-            el._heightOrig  = el.style.height;
-            el._maxHeightOrig = el.style.maxHeight;
-            el.style.overflow  = 'visible';
-            el.style.height    = 'auto';
-            el.style.maxHeight = 'none';
-        });
+        // Temporarily expand panels for full content capture using a class
+        document.body.classList.add('print-expanding');
 
         window.print();
 
         // Restore after print dialog closes
         setTimeout(() => {
-            document.querySelectorAll('.panel, .panel-body, .report-section, .actions-section').forEach(el => {
-                el.style.overflow  = el._overflowOrig  || '';
-                el.style.height    = el._heightOrig    || '';
-                el.style.maxHeight = el._maxHeightOrig || '';
-            });
+            document.body.classList.remove('print-expanding');
         }, 1000);
     });
 
