@@ -890,7 +890,7 @@
 
     // ── Flowise API ───────────────────────────────────────────────────
     async function sendToFlowise(text, isReportRequest, speakerLabel) {
-        const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+        const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
         try {
             const response = await fetch(flowiseUrl, {
                 method: 'POST',
@@ -1128,7 +1128,7 @@
                 translatedEl.classList.add('translating');
                 translatedEl.textContent = '翻譯中...';
                 try {
-                    const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+                    const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
                     const response = await fetch(flowiseUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
