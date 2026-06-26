@@ -873,7 +873,7 @@
         });
 
         const prompt = transcriptText
-            ? `【請根據以下會議逐字稿產生正式會議紀錄】\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
+            ? `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
             : '【請產生空白會議紀錄範本，包含會議摘要與 [SECTION_SPLIT] 以及 Action Items 區塊】';
 
         await sendToFlowise(prompt, true);
@@ -1043,9 +1043,12 @@
 
     function parseNames(raw) {
         return raw
-            .split(/[\n,，、;；]/)
-            .map(s => s.trim())
-            .filter(s => s.length > 0 && s.length <= 30);
+            .split(/[\n;；]/)
+            .map(s => s
+                .replace(/<[^>]*>/g, '')   // 移除 <email@...>
+                .trim()
+            )
+            .filter(s => s.length > 0 && s.length <= 50);
     }
 
     document.getElementById('import-textarea').addEventListener('input', function() {
