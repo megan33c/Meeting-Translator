@@ -562,6 +562,26 @@
     <div class="attendee-input-group">
         <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
         <button class="attendee-add-btn" onclick="addAttendee()">+ Add</button>
+        <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">匯入清單</button>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#0d1424;border:1px solid rgba(99,118,162,0.3);border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">匯入與會人員清單</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:14px;">每行一個名字，或用逗號分隔，也可上傳 .txt / .csv 檔案</div>
+        <textarea id="import-textarea" placeholder="例如：&#10;Megan&#10;John&#10;Amy&#10;或：Megan, John, Amy" style="width:100%;height:130px;background:#080e1c;border:1px solid rgba(99,118,162,0.2);border-radius:6px;color:#e2e8f0;font-size:12px;padding:10px;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"></textarea>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+            <label style="font-size:11px;color:#64748b;cursor:pointer;">
+                <input type="file" id="import-file" accept=".txt,.csv" style="display:none;" onchange="handleImportFile(this)">
+                <span style="padding:5px 10px;border:1px solid rgba(99,118,162,0.25);border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;">📄 上傳檔案</span>
+            </label>
+            <div style="flex:1;"></div>
+            <button onclick="closeImportModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
+            <button onclick="confirmImport()" style="padding:7px 16px;border:1px solid rgba(34,197,94,0.4);border-radius:6px;background:rgba(34,197,94,0.08);color:#4ade80;font-size:11px;cursor:pointer;font-weight:600;">確認匯入</button>
+        </div>
+        <div id="import-preview" style="margin-top:10px;font-size:10px;color:#64748b;min-height:16px;"></div>
     </div>
 </div>
 
@@ -939,40 +959,63 @@
         const dropdown = document.createElement('div');
         dropdown.className = 'speaker-dropdown';
 
-        // Default section
-        let html = `<div class="speaker-dropdown-section">`;
-        html += `<div class="speaker-dropdown-item" data-name="YOU"><span class="pip" style="background:var(--accent-cyan)"></span>YOU</div>`;
-        html += `</div>`;
+        const allNames = ['YOU', ...attendees];
 
-        // Attendees section
-        if (attendees.length > 0) {
-            html += `<div class="speaker-dropdown-section">`;
-            html += `<div class="speaker-dropdown-section-label">與會人員</div>`;
-            attendees.forEach(name => {
-                html += `<div class="speaker-dropdown-item" data-name="${name}"><span class="pip" style="background:var(--accent-green)"></span>${name}</div>`;
-            });
-            html += `</div>`;
+        // Search input (only show if >5 names)
+        let searchHtml = '';
+        if (allNames.length > 5) {
+            searchHtml = `<div style="padding:6px 8px 4px;">
+                <input id="dd-search" placeholder="搜尋名字..." autocomplete="off"
+                  style="width:100%;box-sizing:border-box;background:#0a1422;border:1px solid rgba(99,118,162,0.3);
+                         border-radius:5px;color:#e2e8f0;font-size:11px;padding:5px 8px;outline:none;font-family:inherit;">
+            </div>`;
         }
 
-        dropdown.innerHTML = html;
+        function buildItems(filter) {
+            const filtered = allNames.filter(n => !filter || n.toLowerCase().includes(filter.toLowerCase()));
+            if (filtered.length === 0) return '<div style="padding:8px 12px;font-size:11px;color:#64748b;">找不到符合的名字</div>';
+            let html = '<div class="speaker-dropdown-section">';
+            filtered.forEach(name => {
+                const color = name === 'YOU' ? 'var(--accent-cyan)' : 'var(--accent-green)';
+                html += `<div class="speaker-dropdown-item" data-name="${name}"><span class="pip" style="background:${color}"></span>${name}</div>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        dropdown.innerHTML = searchHtml + `<div id="dd-list">${buildItems('')}</div>`;
 
         const rect = badge.getBoundingClientRect();
         dropdown.style.top = (rect.bottom + 4) + 'px';
         dropdown.style.left = rect.left + 'px';
 
-        dropdown.querySelectorAll('.speaker-dropdown-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const name = item.dataset.name;
-                blockEl.dataset.speaker = name;
-                updateBadge(badge, name);
-                dropdown.remove();
-                activeDropdown = null;
+        function bindItems() {
+            dropdown.querySelectorAll('.speaker-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = item.dataset.name;
+                    blockEl.dataset.speaker = name;
+                    updateBadge(badge, name);
+                    dropdown.remove();
+                    activeDropdown = null;
+                });
             });
-        });
+        }
+        bindItems();
 
         document.body.appendChild(dropdown);
         activeDropdown = dropdown;
+
+        // Wire up search
+        const searchInput = dropdown.querySelector('#dd-search');
+        if (searchInput) {
+            setTimeout(() => searchInput.focus(), 30);
+            searchInput.addEventListener('input', () => {
+                dropdown.querySelector('#dd-list').innerHTML = buildItems(searchInput.value);
+                bindItems();
+            });
+            searchInput.addEventListener('keydown', (e) => e.stopPropagation());
+        }
 
         setTimeout(() => {
             document.addEventListener('click', function handler(e) {
@@ -984,6 +1027,65 @@
             });
         }, 50);
     }
+
+    // ── Import Modal ──────────────────────────────────────────────────
+    function openImportModal() {
+        const modal = document.getElementById('import-modal');
+        modal.style.display = 'flex';
+        document.getElementById('import-textarea').value = '';
+        document.getElementById('import-preview').textContent = '';
+        setTimeout(() => document.getElementById('import-textarea').focus(), 50);
+    }
+
+    function closeImportModal() {
+        document.getElementById('import-modal').style.display = 'none';
+    }
+
+    function parseNames(raw) {
+        return raw
+            .split(/[\n,，、;；]/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && s.length <= 30);
+    }
+
+    document.getElementById('import-textarea').addEventListener('input', function() {
+        const names = parseNames(this.value);
+        const preview = document.getElementById('import-preview');
+        if (names.length > 0) {
+            preview.textContent = `預覽 ${names.length} 位：${names.slice(0, 8).join('、')}${names.length > 8 ? '...' : ''}`;
+        } else {
+            preview.textContent = '';
+        }
+    });
+
+    function handleImportFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('import-textarea').value = e.target.result;
+            document.getElementById('import-textarea').dispatchEvent(new Event('input'));
+        };
+        reader.readAsText(file, 'UTF-8');
+        input.value = '';
+    }
+
+    function confirmImport() {
+        const raw = document.getElementById('import-textarea').value;
+        const names = parseNames(raw);
+        if (names.length === 0) return;
+        let added = 0;
+        names.forEach(name => {
+            if (!attendees.includes(name)) { attendees.push(name); added++; }
+        });
+        renderAttendeeTags();
+        closeImportModal();
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('import-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeImportModal();
+    });
 
     function updateBadge(badge, name) {
         if (name === 'YOU') {
