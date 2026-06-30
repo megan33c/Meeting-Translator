@@ -608,7 +608,10 @@
         </div>
         <div class="panel-body">
             <div class="report-section" id="report-section">
-                <div class="section-label">會議摘要 · Summary & Key Decisions</div>
+                <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>會議摘要 · Summary & Key Decisions</span>
+                    <button id="mail-summary-btn" style="display:none;font-size:11px;padding:4px 10px;border-radius:5px;background:rgba(99,118,162,0.15);border:1px solid rgba(99,118,162,0.4);color:#e2e8f0;cursor:pointer;">📧 Mail Summary</button>
+                </div>
                 <div id="report-content">
                     <div class="placeholder" id="placeholder-report" style="margin-top:30px;">
                         會議結束後<br>點擊「GENERATE REPORT」<br>自動產出摘要與決議
@@ -921,14 +924,14 @@
     }
 
     // ── Attendee Management ───────────────────────────────────────────
-    let attendees = [];
+    let attendees = []; // [{name, email}]
     let activeDropdown = null;
 
     function addAttendee() {
         const input = document.getElementById('attendee-input');
         const name = input.value.trim();
-        if (!name || attendees.includes(name)) { input.value = ''; return; }
-        attendees.push(name);
+        if (!name || attendees.some(a => a.name === name)) { input.value = ''; return; }
+        attendees.push({ name, email: '' });
         renderAttendeeTags();
         input.value = '';
         input.focus();
@@ -939,7 +942,7 @@
     });
 
     function removeAttendee(name) {
-        attendees = attendees.filter(a => a !== name);
+        attendees = attendees.filter(a => a.name !== name);
         renderAttendeeTags();
     }
 
@@ -949,10 +952,10 @@
             container.innerHTML = '<span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>';
             return;
         }
-        container.innerHTML = attendees.map(name => `
-            <span class="attendee-tag">
-                ${name}
-                <span class="attendee-tag-remove" onclick="removeAttendee('${name}')">×</span>
+        container.innerHTML = attendees.map(a => `
+            <span class="attendee-tag" ${a.email ? `title="${a.email}"` : 'title="未提供 Email"'}>
+                ${a.name}${a.email ? ' <span style="opacity:0.5;font-size:10px;">✉</span>' : ''}
+                <span class="attendee-tag-remove" onclick="removeAttendee('${a.name}')">×</span>
             </span>
         `).join('');
     }
@@ -963,7 +966,8 @@
         const dropdown = document.createElement('div');
         dropdown.className = 'speaker-dropdown';
 
-        const allNames = ['YOU', ...attendees];
+        const allNames = ['YOU', ...attendees.map(a => a.name)];
+
 
         // Search input (only show if >5 names)
         let searchHtml = '';
@@ -1045,21 +1049,28 @@
         document.getElementById('import-modal').style.display = 'none';
     }
 
-    function parseNames(raw) {
+    // 解析「姓名 (公司) <Email>」格式，回傳 [{name, email}]
+    function parseAttendeeEntries(raw) {
         return raw
             .split(/[\n;；]/)
-            .map(s => s
-                .replace(/<[^>]*>/g, '')   // 移除 <email@...>
-                .trim()
-            )
-            .filter(s => s.length > 0 && s.length <= 50);
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .map(s => {
+                const emailMatch = s.match(/<([^<>]+@[^<>]+)>/);
+                const email = emailMatch ? emailMatch[1].trim() : '';
+                const name = s.replace(/<[^>]*>/g, '').trim();
+                return { name, email };
+            })
+            .filter(entry => entry.name.length > 0 && entry.name.length <= 50);
     }
 
     document.getElementById('import-textarea').addEventListener('input', function() {
-        const names = parseNames(this.value);
+        const entries = parseAttendeeEntries(this.value);
         const preview = document.getElementById('import-preview');
-        if (names.length > 0) {
-            preview.textContent = `預覽 ${names.length} 位：${names.slice(0, 8).join('、')}${names.length > 8 ? '...' : ''}`;
+        if (entries.length > 0) {
+            const withEmail = entries.filter(e => e.email).length;
+            const names = entries.map(e => e.name);
+            preview.textContent = `預覽 ${entries.length} 位（含 Email：${withEmail} 位）：${names.slice(0, 8).join('、')}${names.length > 8 ? '...' : ''}`;
         } else {
             preview.textContent = '';
         }
@@ -1079,11 +1090,15 @@
 
     function confirmImport() {
         const raw = document.getElementById('import-textarea').value;
-        const names = parseNames(raw);
-        if (names.length === 0) return;
-        let added = 0;
-        names.forEach(name => {
-            if (!attendees.includes(name)) { attendees.push(name); added++; }
+        const entries = parseAttendeeEntries(raw);
+        if (entries.length === 0) return;
+        entries.forEach(entry => {
+            const existing = attendees.find(a => a.name === entry.name);
+            if (!existing) {
+                attendees.push(entry);
+            } else if (entry.email && !existing.email) {
+                existing.email = entry.email;
+            }
         });
         renderAttendeeTags();
         closeImportModal();
@@ -1204,8 +1219,12 @@
 
     // ── Display Report ────────────────────────────────────────────────
     let lastTranscriptForSchedule = '';
+    let lastReportRawText = '';
 
     function displayReport(rawText, transcriptText) {
+        lastReportRawText = rawText;
+        document.getElementById('mail-summary-btn').style.display = 'inline-block';
+
         const sections = rawText.split('[SECTION_SPLIT]');
         let summaryHtml = '';
         let actionsRaw = '';
@@ -1262,6 +1281,57 @@
     // ── Schedule (Structured Action Items → Outlook Draft) ──────────────
     const FLOWISE_JSON_EXTRACTOR_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/6a7d7a6f-2b4e-4a77-b29b-fd1e9c0b14b2";
     const FLOWISE_AGENT_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+
+    document.getElementById('mail-summary-btn').addEventListener('click', async () => {
+        if (!lastReportRawText) return;
+        if (attendees.length === 0) {
+            alert('尚未設定與會人員，請先於上方欄位輸入或匯入與會人員名單。');
+            return;
+        }
+
+        const missingEmail = attendees.filter(a => !a.email);
+        if (missingEmail.length > 0) {
+            const proceed = confirm(
+                `以下與會者缺少 Email，草稿可能無法正確帶入收件人：\n${missingEmail.map(a => a.name).join('、')}\n\n是否仍要繼續？`
+            );
+            if (!proceed) return;
+        }
+
+        const btn = document.getElementById('mail-summary-btn');
+        const originalLabel = btn.textContent;
+        btn.textContent = '寄送中...';
+        btn.disabled = true;
+
+        const cleanedReport = lastReportRawText.replace(/\[SECTION_SPLIT\]/g, '\n\n');
+        const attendeeListStr = attendees
+            .map(a => a.email ? `${a.name} <${a.email}>` : `${a.name}（無 Email）`)
+            .join('；');
+
+        const instruction = `請幫我草擬一封 Outlook 郵件草稿，收件人為本次會議全體與會者：${attendeeListStr}。\n` +
+            `郵件標題請設為「會議紀錄摘要」，內容請完整附上以下會議紀錄全文（摘要、決議、行動方案皆需包含，請勿省略或重新摘要，直接附上原文）：\n\n` +
+            `${cleanedReport}`;
+
+        try {
+            const response = await fetch(FLOWISE_AGENT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    question: instruction,
+                    overrideConfig: { sessionId: `mail-summary-${Date.now()}` }
+                })
+            });
+            const data = await response.json();
+            const resultText = typeof data === 'string' ? data : (data.text || data.output || data.answer || JSON.stringify(data));
+            alert(resultText);
+        } catch (err) {
+            console.error(err);
+            alert('草稿建立失敗，請稍後再試。');
+        } finally {
+            btn.textContent = originalLabel;
+            btn.disabled = false;
+        }
+    });
 
     let scheduleItems = [];
 
@@ -1405,7 +1475,7 @@
         const dateStr = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
         const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
         const elapsed = document.getElementById('live-timer').innerText;
-        const attendeeList = attendees.length > 0 ? attendees.join('、') : '—';
+        const attendeeList = attendees.length > 0 ? attendees.map(a => a.name).join('、') : '—';
         document.getElementById('print-meta').textContent =
             `匯出時間：${dateStr} ${timeStr}　|　會議時長：${elapsed}　|　與會人員：${attendeeList}`;
 
@@ -1426,7 +1496,7 @@
         const dateStr = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
         const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
         const elapsed = document.getElementById('live-timer').innerText;
-        const attendeeList = attendees.length > 0 ? attendees.join('、') : '—';
+        const attendeeList = attendees.length > 0 ? attendees.map(a => a.name).join('、') : '—';
 
         let lines = [];
 
