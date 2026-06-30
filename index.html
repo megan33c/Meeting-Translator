@@ -560,18 +560,17 @@
         <span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>
     </div>
     <div class="attendee-input-group">
-        <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
-        <button class="attendee-add-btn" onclick="addAttendee()">+ Add</button>
-        <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">匯入清單</button>
+        <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">+ 新增與會人員</button>
     </div>
 </div>
 
 <!-- Import Modal -->
 <div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#0d1424;border:1px solid rgba(99,118,162,0.3);border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-        <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">匯入與會人員清單</div>
-        <div style="font-size:11px;color:#64748b;margin-bottom:14px;">每行一個名字，或用逗號分隔，也可上傳 .txt / .csv 檔案</div>
-        <textarea id="import-textarea" placeholder="例如：&#10;Megan&#10;John&#10;Amy&#10;或：Megan, John, Amy" style="width:100%;height:130px;background:#080e1c;border:1px solid rgba(99,118,162,0.2);border-radius:6px;color:#e2e8f0;font-size:12px;padding:10px;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"></textarea>
+        <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">新增與會人員</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;">每行一位，或用分號（;）分隔。建議使用以下格式以便日後自動建立草稿與行事曆事件：</div>
+        <div style="font-size:11px;color:#34d399;margin-bottom:14px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:5px;padding:6px 8px;font-family:monospace;">Chiu. Megan (TPE) &lt;Megan_Chiu@compal.com&gt;</div>
+        <textarea id="import-textarea" placeholder="例如：&#10;Chiu. Megan (TPE) <Megan_Chiu@compal.com>&#10;Ding. Wilson (CET) <Wilson_Ding@compal.com>&#10;&#10;（未提供 Email 也可僅輸入姓名，但建立 Outlook 草稿/行事曆事件時將無法自動帶入收件人）" style="width:100%;height:140px;background:#080e1c;border:1px solid rgba(99,118,162,0.2);border-radius:6px;color:#e2e8f0;font-size:12px;padding:10px;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;"></textarea>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
             <label style="font-size:11px;color:#64748b;cursor:pointer;">
                 <input type="file" id="import-file" accept=".txt,.csv" style="display:none;" onchange="handleImportFile(this)">
@@ -926,20 +925,6 @@
     // ── Attendee Management ───────────────────────────────────────────
     let attendees = []; // [{name, email}]
     let activeDropdown = null;
-
-    function addAttendee() {
-        const input = document.getElementById('attendee-input');
-        const name = input.value.trim();
-        if (!name || attendees.some(a => a.name === name)) { input.value = ''; return; }
-        attendees.push({ name, email: '' });
-        renderAttendeeTags();
-        input.value = '';
-        input.focus();
-    }
-
-    document.getElementById('attendee-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addAttendee();
-    });
 
     function removeAttendee(name) {
         attendees = attendees.filter(a => a.name !== name);
