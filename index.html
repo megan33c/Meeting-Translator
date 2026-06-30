@@ -1377,7 +1377,14 @@
         const card = document.createElement('div');
         card.style.cssText = 'background:#0f1a2a;border:1px solid rgba(99,118,162,0.3);border-radius:10px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;';
 
-        let itemsHtml = scheduleItems.map((item, idx) => `
+        let itemsHtml = scheduleItems.map((item, idx) => {
+            const missingEmailNames = item.type === 'meeting' && item.attendees
+                ? item.attendees.filter(name => {
+                    const match = attendees.find(a => a.name === name);
+                    return !match || !match.email;
+                  })
+                : [];
+            return `
             <div class="schedule-item" data-idx="${idx}" style="border:1px solid rgba(99,118,162,0.25);border-radius:8px;padding:12px;margin-bottom:10px;">
                 <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
                     <input type="checkbox" class="sched-checkbox" checked style="margin-top:3px;">
@@ -1390,11 +1397,14 @@
                             ${item.due_date ? ' · ' + item.due_date : ''}
                         </div>
                         ${item.type === 'meeting' && item.attendees ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">與會：${item.attendees.join(', ')}</div>` : ''}
+                        ${missingEmailNames.length > 0 ? `<div style="font-size:10.5px;color:#fb923c;margin-top:2px;">⚠ 缺少 Email：${missingEmailNames.join('、')}</div>` : ''}
                         ${item.notes ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${item.notes}</div>` : ''}
                     </div>
                 </label>
             </div>
-        `).join('');
+        `;
+        }).join('');
+
 
         if (scheduleItems.length === 0) {
             itemsHtml = '<div style="color:var(--text-sub);font-size:13px;">未解析出任何待辦事項。</div>';
@@ -1419,6 +1429,15 @@
         document.getElementById('schedule-confirm-btn').addEventListener('click', submitScheduleDrafts);
     }
 
+    // 將姓名陣列對照全域 attendees 名單，盡量補上 Email
+    function resolveAttendeeContacts(names) {
+        if (!names || names.length === 0) return [];
+        return names.map(name => {
+            const match = attendees.find(a => a.name === name);
+            return match && match.email ? `${name} <${match.email}>` : `${name}（無 Email，請手動補上）`;
+        });
+    }
+
     async function submitScheduleDrafts() {
         const checkboxes = document.querySelectorAll('.sched-checkbox');
         const statusEl = document.getElementById('schedule-status');
@@ -1438,9 +1457,17 @@
             const item = selected[i];
             statusEl.textContent = `處理中 (${i + 1}/${selected.length})：${item.title}`;
 
-            const instruction = item.type === 'meeting'
-                ? `請幫我草擬一封 Outlook 會議邀請草稿。標題：「${item.title}」，時間：${item.due_date || '（時間未明確，請於內容中註明待確認）'}，與會人員：${(item.attendees || []).join('、')}。內容請簡述會議目的：${item.notes || item.title}。`
-                : `請幫我草擬一封 Outlook 郵件草稿，提醒負責人 ${item.assignee} 處理以下任務：「${item.title}」，期限：${item.due_date || '（未明確期限）'}。補充說明：${item.notes || '無'}。`;
+            let instruction;
+            if (item.type === 'meeting') {
+                const contacts = resolveAttendeeContacts(item.attendees);
+                const duration = item.duration_minutes || 60;
+                instruction = `請幫我在 Outlook 行事曆建立一個會議事件（Calendar Event，不是郵件）。` +
+                    `標題：「${item.title}」，開始時間：${item.due_date || '（時間未明確，請於說明中註明待確認）'}，` +
+                    `會議時長：${duration} 分鐘，與會人員：${contacts.length > 0 ? contacts.join('；') : '（未提供與會者）'}。` +
+                    `會議說明：${item.notes || item.title}。`;
+            } else {
+                instruction = `請幫我草擬一封 Outlook 郵件草稿，提醒負責人 ${item.assignee} 處理以下任務：「${item.title}」，期限：${item.due_date || '（未明確期限）'}。補充說明：${item.notes || '無'}。`;
+            }
 
             try {
                 const response = await fetch(FLOWISE_AGENT_URL, {
