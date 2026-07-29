@@ -918,7 +918,7 @@
 
     // ── Flowise API ───────────────────────────────────────────────────
     async function sendToFlowise(text, isReportRequest, speakerLabel) {
-        const flowiseUrl = "/api/flowise/api/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+        const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
         try {
             const response = await fetch(flowiseUrl, {
                 method: 'POST',
@@ -1156,7 +1156,7 @@
                 translatedEl.classList.add('translating');
                 translatedEl.textContent = '翻譯中...';
                 try {
-                    const flowiseUrl = "/api/flowise/api/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+                    const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
                     const response = await fetch(flowiseUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1495,7 +1495,7 @@
 
     async function translateSegment(block, text) {
         try {
-            const flowiseUrl = "/api/flowise/api/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+            const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
             const res = await fetch(flowiseUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
