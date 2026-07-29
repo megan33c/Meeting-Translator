@@ -541,6 +541,9 @@
         <option value="westeurope">West Europe</option>
     </select>
     <button onclick="saveAzureKey()">Save & Connect</button>
+    <span style="white-space:nowrap;color:var(--accent-action);font-weight:700;margin-left:16px;">GROQ KEY</span>
+    <input type="password" id="groq-key-input" placeholder="貼上 Groq API Key（上傳音檔用）..." style="min-width:220px;" />
+    <button onclick="saveGroqKey()">Save</button>
 </div>
 
 <div class="top-bar">
@@ -582,6 +585,29 @@
             <button onclick="confirmImport()" style="padding:7px 16px;border:1px solid rgba(34,197,94,0.4);border-radius:6px;background:rgba(34,197,94,0.08);color:#4ade80;font-size:11px;cursor:pointer;font-weight:600;">確認匯入</button>
         </div>
         <div id="import-preview" style="margin-top:10px;font-size:10px;color:#64748b;min-height:16px;"></div>
+    </div>
+</div>
+
+<!-- Upload Audio Modal -->
+<div id="upload-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#0d1424;border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:28px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:4px;">Upload Audio File</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:16px;">支援 .mp3 .wav .mp4 .m4a　建議檔案小於 25MB（約 30 分鐘 64kbps）</div>
+        <div id="upload-dropzone" style="border:2px dashed rgba(251,191,36,0.3);border-radius:8px;padding:24px;text-align:center;color:#64748b;font-size:12px;cursor:pointer;transition:border-color 0.2s;"
+             onclick="document.getElementById('audio-file-input').click()">
+            <div style="font-size:24px;margin-bottom:6px;">🎵</div>
+            <div id="upload-filename">點擊選擇音檔或拖曳至此</div>
+        </div>
+        <div id="upload-progress" style="display:none;margin-top:14px;">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;" id="upload-status">正在送出...</div>
+            <div style="background:#080e1c;border-radius:4px;height:6px;overflow:hidden;">
+                <div id="upload-progress-bar" style="height:100%;background:linear-gradient(90deg,#fbbf24,#f59e0b);width:0%;transition:width 0.3s;border-radius:4px;"></div>
+            </div>
+        </div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+            <button onclick="closeUploadModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
+            <button id="upload-confirm-btn" onclick="startAudioTranscribe()" style="padding:7px 18px;border:1px solid rgba(251,191,36,0.4);border-radius:6px;background:rgba(251,191,36,0.08);color:#fbbf24;font-size:11px;cursor:pointer;font-weight:600;">開始轉錄</button>
+        </div>
     </div>
 </div>
 
@@ -635,6 +661,8 @@
         <button class="btn btn-success" id="report-btn">⚡ Generate Report</button>
         <button class="btn btn-export" id="export-btn">Export PDF</button>
         <button class="btn btn-export" id="export-txt-btn">Export TXT</button>
+        <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()" style="border-color:rgba(251,191,36,0.4);color:#fbbf24;background:rgba(251,191,36,0.05);">Upload Audio</button>
+        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;" onchange="handleAudioUpload(this)">
     </div>
     <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
     <!-- Mobile row 2: Clear + PDF/TXT icon buttons -->
@@ -1340,6 +1368,153 @@
         a.click();
         URL.revokeObjectURL(url);
     });
+
+    // ── Groq Key ──────────────────────────────────────────────────────
+    function saveGroqKey() {
+        const key = document.getElementById('groq-key-input').value.trim();
+        if (key) { localStorage.setItem('groqApiKey', key); alert('Groq Key 已儲存！'); }
+    }
+    (function loadGroqKey() {
+        const k = localStorage.getItem('groqApiKey');
+        if (k) document.getElementById('groq-key-input').value = k;
+    })();
+
+    // ── Upload Audio ──────────────────────────────────────────────────
+    let pendingAudioFile = null;
+
+    function handleAudioUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        pendingAudioFile = file;
+        document.getElementById('upload-filename').textContent = `${file.name}　（${(file.size/1024/1024).toFixed(1)} MB）`;
+        document.getElementById('upload-modal').style.display = 'flex';
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-confirm-btn').disabled = false;
+        input.value = '';
+    }
+
+    function closeUploadModal() {
+        document.getElementById('upload-modal').style.display = 'none';
+        pendingAudioFile = null;
+    }
+
+    document.getElementById('upload-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeUploadModal();
+    });
+
+    async function startAudioTranscribe() {
+        const groqKey = localStorage.getItem('groqApiKey');
+        if (!groqKey) { alert('請先在上方輸入並儲存 Groq API Key！'); return; }
+        if (!pendingAudioFile) { alert('請先選擇音檔！'); return; }
+
+        const btn = document.getElementById('upload-confirm-btn');
+        btn.disabled = true;
+        const progress = document.getElementById('upload-progress');
+        const statusEl = document.getElementById('upload-status');
+        const bar = document.getElementById('upload-progress-bar');
+        progress.style.display = 'block';
+
+        try {
+            // Step 1: Whisper transcription
+            statusEl.textContent = '上傳中，請稍候...';
+            bar.style.width = '20%';
+
+            const formData = new FormData();
+            formData.append('file', pendingAudioFile);
+            formData.append('model', 'whisper-large-v3');
+            formData.append('response_format', 'verbose_json');
+            formData.append('language', 'zh');
+
+            const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${groqKey}` },
+                body: formData
+            });
+
+            if (!whisperRes.ok) {
+                const err = await whisperRes.json();
+                throw new Error(err.error?.message || '轉錄失敗');
+            }
+
+            bar.style.width = '60%';
+            statusEl.textContent = '轉錄完成，正在翻譯...';
+
+            const whisperData = await whisperRes.json();
+            const segments = whisperData.segments || [];
+
+            if (segments.length === 0) {
+                throw new Error('沒有偵測到語音內容');
+            }
+
+            // Step 2: Insert segments into transcript with translation
+            closeUploadModal();
+
+            const transcriptEl = document.getElementById('transcript');
+            // Clear placeholder
+            const placeholder = transcriptEl.querySelector('.placeholder');
+            if (placeholder) placeholder.remove();
+
+            for (const seg of segments) {
+                const startTime = new Date(seg.start * 1000).toISOString().substr(11, 8);
+                const text = seg.text.trim();
+                if (!text) continue;
+
+                // Send to Flowise for translation
+                const block = document.createElement('div');
+                block.className = 'translation-block';
+                block.dataset.speaker = '';
+                block.innerHTML = `
+                    <div class="translation-meta">
+                        <span class="translation-time">${startTime}</span>
+                        <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
+                    </div>
+                    <div class="original-text">${text}</div>
+                    <div class="translated-text" style="color:var(--text-sub);font-style:italic;">翻譯中...</div>
+                `;
+                transcriptEl.appendChild(block);
+
+                const badge = block.querySelector('.badge-empty');
+                badge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    buildDropdown(badge, block);
+                });
+
+                transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+                // Translate via Flowise
+                translateSegment(block, text);
+            }
+
+        } catch (err) {
+            statusEl.textContent = `錯誤：${err.message}`;
+            bar.style.width = '100%';
+            bar.style.background = '#ef4444';
+            btn.disabled = false;
+        }
+    }
+
+    async function translateSegment(block, text) {
+        try {
+            const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
+            const res = await fetch(flowiseUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: `請將以下文字翻譯成英文（若已是英文則翻譯成繁體中文），只輸出譯文，不要解釋：
+${text}` })
+            });
+            const data = await res.json();
+            const translated = (data.text || data.answer || '').trim();
+            const translatedEl = block.querySelector('.translated-text');
+            if (translatedEl && translated) {
+                translatedEl.textContent = translated;
+                translatedEl.style.fontStyle = '';
+                translatedEl.style.color = '';
+            }
+        } catch (e) {
+            const translatedEl = block.querySelector('.translated-text');
+            if (translatedEl) translatedEl.textContent = '（翻譯失敗）';
+        }
+    }
 
     // ── Mobile button aliases ─────────────────────────────────────────
     document.getElementById('clear-btn-mobile').addEventListener('click', () =>
