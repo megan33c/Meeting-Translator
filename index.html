@@ -552,6 +552,7 @@
         <select id="lang-select">
             <option value="zh-TW">Multilingual (Mixed Chinese/English)</option>
             <option value="en-US">International (Pure English Only)</option>
+            <option value="zh-only">Chinese Meeting (Report Only · No Translation)</option>
         </select>
     </div>
 </div>
@@ -900,8 +901,12 @@
             }
         });
 
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+
         const prompt = transcriptText
-            ? `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
+            ? isZhOnly
+                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
+                : `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
             : '【請產生空白會議紀錄範本，包含會議摘要與 [SECTION_SPLIT] 以及 Action Items 區塊】';
 
         await sendToFlowise(prompt, true);
@@ -942,6 +947,15 @@
     }
 
     async function sendToFlowise(text, isReportRequest, speakerLabel) {
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+
+        // zh-only mode: skip translation, just display original text
+        if (!isReportRequest && isZhOnly) {
+            displayTranslation(text, speakerLabel, true);
+            statusText.innerText = 'Listening...';
+            return;
+        }
+
         try {
             const resultText = await callGroq([
                 { role: 'user', content: text }
@@ -1195,7 +1209,7 @@
     }
 
     // ── Display Translation ───────────────────────────────────────────
-    function displayTranslation(text, speakerLabel) {
+    function displayTranslation(text, speakerLabel, zhOnly = false) {
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
         const block = document.createElement('div');
@@ -1217,7 +1231,7 @@
                 ${badgeHtml}
             </div>
             <div class="original-text">${original}</div>
-            ${translation ? `<div class="translated-text">${translation}</div>` : ''}
+            ${!zhOnly && translation ? `<div class="translated-text">${translation}</div>` : ''}
         `;
 
         // All blocks get click handler for speaker assignment
