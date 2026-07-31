@@ -729,8 +729,8 @@
 
         // Auto-detect Chinese + English
         const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(['zh-TW', 'en-US', 'zh-CN']);
-        speechConfig.setProperty('SpeechServiceConnection_SegmentationSilenceTimeoutMs', '2000');
-        speechConfig.setProperty('SpeechServiceConnection_EndSilenceTimeoutMs', '2000');
+        speechConfig.setProperty('SpeechServiceConnection_SegmentationSilenceTimeoutMs', '3000');
+        speechConfig.setProperty('SpeechServiceConnection_EndSilenceTimeoutMs', '3000');
         const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig);
 
         recognizer.recognized = async (s, e) => {
