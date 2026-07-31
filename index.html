@@ -564,6 +564,8 @@
         <span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>
     </div>
     <div class="attendee-input-group">
+        <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
+        <button class="attendee-add-btn" onclick="addAttendee()">+ Add</button>
         <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">匯入清單</button>
     </div>
 </div>
@@ -577,7 +579,7 @@
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
             <label style="font-size:11px;color:#64748b;cursor:pointer;">
                 <input type="file" id="import-file" accept=".txt,.csv" style="display:none;" onchange="handleImportFile(this)">
-                <span onclick="document.getElementById('import-file').click()" style="padding:5px 10px;border:1px solid rgba(99,118,162,0.25);border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;">📄 上傳檔案</span>
+                <span style="padding:5px 10px;border:1px solid rgba(99,118,162,0.25);border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;">📄 上傳檔案</span>
             </label>
             <div style="flex:1;"></div>
             <button onclick="closeImportModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
@@ -588,7 +590,8 @@
 </div>
 
 <!-- Upload Audio Modal -->
-<div id="upload-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:9999;align-items:center;justify-content:center;">
+<div id="upload-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:9999;">
+    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)closeUploadModal()">
     <div style="background:#0d1424;border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:28px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
         <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:4px;">Upload Audio File</div>
         <div style="font-size:11px;color:#64748b;margin-bottom:16px;">支援 .mp3 .wav .mp4 .m4a　建議檔案小於 25MB（約 30 分鐘 64kbps）</div>
@@ -607,6 +610,7 @@
             <button onclick="closeUploadModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
             <button id="upload-confirm-btn" onclick="startAudioTranscribe()" style="padding:7px 18px;border:1px solid rgba(251,191,36,0.4);border-radius:6px;background:rgba(251,191,36,0.08);color:#fbbf24;font-size:11px;cursor:pointer;font-weight:600;">開始轉錄</button>
         </div>
+    </div>
     </div>
 </div>
 
@@ -1496,11 +1500,15 @@
     let pendingAudioFile = null;
 
     function handleAudioUpload(input) {
+        console.log('[Upload] handleAudioUpload triggered', input.files);
         const file = input.files[0];
-        if (!file) return;
+        if (!file) { console.log('[Upload] No file selected'); return; }
+        console.log('[Upload] File:', file.name, file.size);
         pendingAudioFile = file;
         document.getElementById('upload-filename').textContent = `${file.name}　（${(file.size/1024/1024).toFixed(1)} MB）`;
-        document.getElementById('upload-modal').style.display = 'flex';
+        const modal = document.getElementById('upload-modal');
+        console.log('[Upload] modal element:', modal);
+        modal.style.display = 'flex';
         document.getElementById('upload-progress').style.display = 'none';
         document.getElementById('upload-confirm-btn').disabled = false;
         input.value = '';
@@ -1514,10 +1522,6 @@
         document.getElementById('upload-modal').style.display = 'none';
         pendingAudioFile = null;
     }
-
-    document.getElementById('upload-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeUploadModal();
-    });
 
     async function startAudioTranscribe() {
         const groqKey = localStorage.getItem('groqApiKey');
