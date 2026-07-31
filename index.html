@@ -577,7 +577,7 @@
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
             <label style="font-size:11px;color:#64748b;cursor:pointer;">
                 <input type="file" id="import-file" accept=".txt,.csv" style="display:none;" onchange="handleImportFile(this)">
-                <span style="padding:5px 10px;border:1px solid rgba(99,118,162,0.25);border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;">📄 上傳檔案</span>
+                <span onclick="document.getElementById('import-file').click()" style="padding:5px 10px;border:1px solid rgba(99,118,162,0.25);border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;">📄 上傳檔案</span>
             </label>
             <div style="flex:1;"></div>
             <button onclick="closeImportModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
@@ -1099,8 +1099,10 @@
     }
 
     function parseNames(raw) {
+        const isOutlookFormat = raw.includes('<') && raw.includes('@');
+        const delimiter = isOutlookFormat ? /[\n;；]/ : /[\n;；,，、]/;
         return raw
-            .split(/[\n;；]/)
+            .split(delimiter)
             .map(s => s
                 .replace(/<[^>]*>/g, '')   // 移除 <email@...>
                 .trim()
