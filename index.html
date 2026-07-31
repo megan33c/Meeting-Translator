@@ -916,21 +916,36 @@
         if (!isRecording) statusText.innerText = 'Ready';
     });
 
-    // ── Flowise API ───────────────────────────────────────────────────
+    // ── Groq API ─────────────────────────────────────────────────────
+    async function callGroq(messages) {
+        const groqKey = localStorage.getItem('groqApiKey');
+        if (!groqKey) throw new Error('Groq API Key 未設定');
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${groqKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: messages,
+                max_tokens: 2048,
+                temperature: 0.3
+            })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || 'Groq API 錯誤');
+        }
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+    }
+
     async function sendToFlowise(text, isReportRequest, speakerLabel) {
-        const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
         try {
-            const response = await fetch(flowiseUrl, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ question: text })
-            });
-            const data = await response.json();
-            const resultText = typeof data === 'string' ? data : (data.text || data.output || data.answer || JSON.stringify(data));
+            const resultText = await callGroq([
+                { role: 'user', content: text }
+            ]);
             if (isReportRequest) {
                 displayReport(resultText);
                 statusText.innerText = 'Report Generated';
@@ -1156,14 +1171,10 @@
                 translatedEl.classList.add('translating');
                 translatedEl.textContent = '翻譯中...';
                 try {
-                    const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
-                    const response = await fetch(flowiseUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ question: newText })
-                    });
-                    const data = await response.json();
-                    const result = typeof data === 'string' ? data : (data.text || data.output || data.answer || '');
+                    const result = await callGroq([
+                        { role: 'system', content: '你是翻譯助手。將文字翻譯成英文（若已是英文則翻譯成繁體中文），只輸出譯文。' },
+                        { role: 'user', content: newText }
+                    ]);
                     const translationMatch = result.match(/譯文[：:]\s*(.+?)$/s);
                     translatedEl.textContent = translationMatch ? translationMatch[1].trim() : result;
                 } catch(err) {
