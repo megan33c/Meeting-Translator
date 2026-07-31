@@ -564,8 +564,6 @@
         <span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>
     </div>
     <div class="attendee-input-group">
-        <input class="attendee-input" id="attendee-input" placeholder="輸入姓名..." maxlength="20" />
-        <button class="attendee-add-btn" onclick="addAttendee()">+ Add</button>
         <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">匯入清單</button>
     </div>
 </div>
@@ -727,6 +725,8 @@
 
         // Auto-detect Chinese + English
         const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(['zh-TW', 'en-US', 'zh-CN']);
+        speechConfig.setProperty('SpeechServiceConnection_SegmentationSilenceTimeoutMs', '2000');
+        speechConfig.setProperty('SpeechServiceConnection_EndSilenceTimeoutMs', '2000');
         const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig);
 
         recognizer.recognized = async (s, e) => {
@@ -1173,11 +1173,94 @@
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
+
+            // Show split button
+            const block = originalEl.closest('.translation-block');
+            const meta = block.querySelector('.translation-meta');
+            if (!block.querySelector('.split-btn')) {
+                const splitBtn = document.createElement('button');
+                splitBtn.className = 'split-btn';
+                splitBtn.textContent = '拆分成兩筆';
+                splitBtn.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid rgba(14,165,233,0.4);background:rgba(14,165,233,0.08);color:#38bdf8;cursor:pointer;margin-left:auto;flex-shrink:0;';
+                meta.style.display = 'flex';
+                meta.style.alignItems = 'center';
+                meta.appendChild(splitBtn);
+
+                splitBtn.addEventListener('mousedown', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const text = originalEl.textContent.trim();
+                    if (!text) return;
+
+                    // Split at midpoint or last punctuation before midpoint
+                    const mid = Math.floor(text.length / 2);
+                    let splitIdx = -1;
+                    const puncts = '。！？，,!?.；;';
+                    for (let i = mid; i >= 0; i--) {
+                        if (puncts.includes(text[i])) { splitIdx = i + 1; break; }
+                    }
+                    if (splitIdx <= 0) {
+                        for (let i = mid; i < text.length; i++) {
+                            if (puncts.includes(text[i])) { splitIdx = i + 1; break; }
+                        }
+                    }
+                    if (splitIdx <= 0) splitIdx = mid;
+
+                    const part1 = text.slice(0, splitIdx).trim();
+                    const part2 = text.slice(splitIdx).trim();
+                    if (!part1 || !part2) return;
+
+                    // Update current block with part1
+                    originalEl.textContent = part1;
+                    originalEl.classList.remove('editing');
+                    originalEl.removeAttribute('contenteditable');
+                    if (translatedEl) {
+                        translatedEl.textContent = '翻譯中...';
+                        translateSegment(block, part1);
+                    }
+
+                    // Insert new block after current with part2
+                    const timeEl = block.querySelector('.translation-time');
+                    const timeStr = timeEl ? timeEl.textContent : '';
+                    const newBlock = document.createElement('div');
+                    newBlock.className = 'translation-block';
+                    newBlock.dataset.speaker = '';
+                    const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+                    newBlock.innerHTML = `
+                        <div class="translation-meta">
+                            <span class="translation-time">${timeStr}</span>
+                            <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
+                        </div>
+                        <div class="original-text">${part2}</div>
+                        ${isZhOnly ? '' : `<div class="translated-text">翻譯中...</div>`}
+                    `;
+                    block.after(newBlock);
+
+                    // Wire badge and editable on new block
+                    const newBadge = newBlock.querySelector('.badge-empty');
+                    newBadge.addEventListener('click', (ev2) => {
+                        ev2.stopPropagation();
+                        buildDropdown(newBadge, newBlock);
+                    });
+                    const newOrigEl = newBlock.querySelector('.original-text');
+                    const newTransEl = newBlock.querySelector('.translated-text');
+                    if (newOrigEl) makeEditable(newOrigEl, newTransEl);
+                    if (!isZhOnly) translateSegment(newBlock, part2);
+
+                    // Remove split button
+                    splitBtn.remove();
+                });
+            }
         });
 
         const saveEdit = async () => {
             originalEl.classList.remove('editing');
             originalEl.removeAttribute('contenteditable');
+            // Remove split button on save
+            const block = originalEl.closest('.translation-block');
+            const splitBtn = block && block.querySelector('.split-btn');
+            if (splitBtn) splitBtn.remove();
+
             const newText = originalEl.textContent.trim();
             if (!newText) return;
             // Re-translate
@@ -1204,6 +1287,9 @@
             if (e.key === 'Escape') {
                 originalEl.classList.remove('editing');
                 originalEl.removeAttribute('contenteditable');
+                const block = originalEl.closest('.translation-block');
+                const splitBtn = block && block.querySelector('.split-btn');
+                if (splitBtn) splitBtn.remove();
             }
         });
     }
@@ -1489,13 +1575,14 @@
                 const block = document.createElement('div');
                 block.className = 'translation-block';
                 block.dataset.speaker = '';
+                const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
                 block.innerHTML = `
                     <div class="translation-meta">
                         <span class="translation-time">${startTime}</span>
                         <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
                     </div>
                     <div class="original-text">${text}</div>
-                    <div class="translated-text" style="color:var(--text-sub);font-style:italic;">翻譯中...</div>
+                    ${isZhOnly ? '' : `<div class="translated-text" style="color:var(--text-sub);font-style:italic;">翻譯中...</div>`}
                 `;
                 transcriptEl.appendChild(block);
 
@@ -1520,6 +1607,13 @@
     }
 
     async function translateSegment(block, text) {
+        // Skip translation in zh-only mode
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+        const translatedEl = block.querySelector('.translated-text');
+        if (isZhOnly) {
+            if (translatedEl) translatedEl.remove();
+            return;
+        }
         try {
             const flowiseUrl = "/api/flowise/v1/prediction/c1c80b1d-648b-4baf-8044-cbedc6f11b48";
             const res = await fetch(flowiseUrl, {
