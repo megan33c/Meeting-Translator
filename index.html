@@ -661,7 +661,7 @@
         <button class="btn btn-export" id="export-btn">Export PDF</button>
         <button class="btn btn-export" id="export-txt-btn">Export TXT</button>
         <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()" style="border-color:rgba(251,191,36,0.4);color:#fbbf24;background:rgba(251,191,36,0.05);">Upload Audio</button>
-        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;" onchange="handleAudioUpload(this)">
+        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;">
     </div>
     <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
     <!-- Mobile row 2: Clear + PDF/TXT icon buttons -->
@@ -1505,6 +1505,10 @@
         document.getElementById('upload-confirm-btn').disabled = false;
         input.value = '';
     }
+
+    document.getElementById('audio-file-input').addEventListener('change', function() {
+        handleAudioUpload(this);
+    });
 
     function closeUploadModal() {
         document.getElementById('upload-modal').style.display = 'none';
