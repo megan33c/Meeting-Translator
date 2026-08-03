@@ -1019,6 +1019,7 @@ async function sendToFlowise(text, isReportRequest, speakerLabel) {
 // ── Attendee Management ───────────────────────────────────────────
 let attendees = [];
 let activeDropdown = null;
+let lastAssignedSpeaker = null; // 記錄手動指派過的最近一位說話者，供「同上一位」快速套用
 
 function addAttendee() {
     const input = document.getElementById('attendee-input');
@@ -1071,6 +1072,16 @@ function buildDropdown(badge, blockEl) {
         </div>`;
     }
 
+    // 「同上一位」快速選項 — 僅提示，不自動預填，不影響空白 badge 的預設狀態
+    let quickHtml = '';
+    if (lastAssignedSpeaker && allNames.includes(lastAssignedSpeaker)) {
+        const color = lastAssignedSpeaker === 'YOU' ? 'var(--accent-cyan)' : 'var(--accent-green)';
+        quickHtml = `<div class="speaker-dropdown-section">
+            <div class="speaker-dropdown-section-label">同上一位</div>
+            <div class="speaker-dropdown-item" data-name="${lastAssignedSpeaker}"><span class="pip" style="background:${color}"></span>${lastAssignedSpeaker}</div>
+        </div>`;
+    }
+
     function buildItems(filter) {
         const filtered = allNames.filter(n => !filter || n.toLowerCase().includes(filter.toLowerCase()));
         if (filtered.length === 0) return '<div style="padding:8px 12px;font-size:11px;color:#64748b;">找不到符合的名字</div>';
@@ -1083,7 +1094,7 @@ function buildDropdown(badge, blockEl) {
         return html;
     }
 
-    dropdown.innerHTML = searchHtml + `<div id="dd-list">${buildItems('')}</div>`;
+    dropdown.innerHTML = searchHtml + quickHtml + `<div id="dd-list">${buildItems('')}</div>`;
 
     const rect = badge.getBoundingClientRect();
     dropdown.style.top = (rect.bottom + 4) + 'px';
@@ -1096,6 +1107,7 @@ function buildDropdown(badge, blockEl) {
                 const name = item.dataset.name;
                 blockEl.dataset.speaker = name;
                 updateBadge(badge, name);
+                lastAssignedSpeaker = name;
                 dropdown.remove();
                 activeDropdown = null;
             });
@@ -1346,15 +1358,17 @@ function displayTranslation(text, speakerLabel, zhOnly = false) {
     const block = document.createElement('div');
     const isMic = speakerLabel === 'MIC';
     block.className = 'translation-block';
-    block.dataset.speaker = '';
+    block.dataset.speaker = isMic ? 'YOU' : '';
 
     const originalMatch = text.match(/原文[：:]\s*(.+?)(?:\n|譯文|$)/s);
     const translationMatch = text.match(/譯文[：:]\s*(.+?)$/s);
     const original = originalMatch ? originalMatch[1].trim() : text;
     const translation = translationMatch ? translationMatch[1].trim() : '';
 
-    // All blocks start with empty badge — user assigns manually
-    const badgeHtml = `<span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>`;
+    // MIC 音軌一定是自己的聲音，自動標記為 YOU；其餘（Teams 對方聲音）維持空白，手動指派
+    const badgeHtml = isMic
+        ? `<span class="badge-you">YOU</span>`
+        : `<span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>`;
 
     block.innerHTML = `
         <div class="translation-meta">
@@ -1365,12 +1379,14 @@ function displayTranslation(text, speakerLabel, zhOnly = false) {
         ${!zhOnly && translation ? `<div class="translated-text">${translation}</div>` : ''}
     `;
 
-    // All blocks get click handler for speaker assignment
-    const badge = block.querySelector('.badge-empty, .badge-named');
-    badge.addEventListener('click', (e) => {
-        e.stopPropagation();
-        buildDropdown(badge, block);
-    });
+    // 非 MIC（即需要人工指派）的 block 才掛上點擊事件
+    if (!isMic) {
+        const badge = block.querySelector('.badge-empty, .badge-named');
+        badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            buildDropdown(badge, block);
+        });
+    }
 
     transcriptArea.appendChild(block);
 
