@@ -131,12 +131,12 @@
 
         .placeholder { color: var(--text-sub); font-size: 12px; text-align: center; margin-top: 60px; line-height: 2.2; }
 
-        .panel-report .panel-body { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
-        .report-section { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--border-color); }
-        .actions-section { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .panel-report .panel-body { padding: 0; display: flex; flex-direction: column; }
+        .report-section { flex: 1; overflow-y: auto; padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .actions-section { flex: 1; overflow-y: auto; padding: 20px; }
         .section-label {
             font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
-            color: var(--text-sub); margin-bottom: 0; padding: 16px 20px 10px;
+            color: var(--text-sub); margin-bottom: 12px;
         }
 
         .translation-block {
@@ -541,6 +541,9 @@
         <option value="westeurope">West Europe</option>
     </select>
     <button onclick="saveAzureKey()">Save & Connect</button>
+    <span style="white-space:nowrap;color:var(--accent-action);font-weight:700;margin-left:16px;">GROQ KEY</span>
+    <input type="password" id="groq-key-input" placeholder="貼上 Groq API Key（上傳音檔用）..." style="min-width:220px;" />
+    <button onclick="saveGroqKey()">Save</button>
 </div>
 
 <div class="top-bar">
@@ -549,7 +552,12 @@
         <select id="lang-select">
             <option value="zh-TW">Multilingual (Mixed Chinese/English)</option>
             <option value="en-US">International (Pure English Only)</option>
+            <option value="zh-only">Chinese Meeting (Report Only · No Translation)</option>
         </select>
+    </div>
+    <div class="lang-selector-box" style="flex:1;min-width:200px;">
+        <label>Agenda（選填）</label>
+        <input type="text" id="agenda-input" placeholder="輸入本次會議主題，用於偏題提醒（留空則不啟用）" style="width:100%;background:var(--panel-bg);border:1px solid var(--border-color);color:var(--text-main);font-size:12px;padding:6px 10px;border-radius:5px;box-sizing:border-box;">
     </div>
 </div>
 
@@ -560,7 +568,7 @@
         <span style="font-size:13px;color:var(--text-sub);">尚未設定與會人員...</span>
     </div>
     <div class="attendee-input-group">
-        <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.35);color:#a5b4fc;">+ 新增與會人員</button>
+        <button class="attendee-add-btn" id="import-btn" onclick="openImportModal()" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.35);color:#34d399;">+ ADD</button>
     </div>
 </div>
 
@@ -581,6 +589,47 @@
             <button onclick="confirmImport()" style="padding:7px 16px;border:1px solid rgba(34,197,94,0.4);border-radius:6px;background:rgba(34,197,94,0.08);color:#4ade80;font-size:11px;cursor:pointer;font-weight:600;">確認匯入</button>
         </div>
         <div id="import-preview" style="margin-top:10px;font-size:10px;color:#64748b;min-height:16px;"></div>
+    </div>
+</div>
+
+<!-- Upload Audio Modal -->
+<div id="upload-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:9999;">
+    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)closeUploadModal()">
+        <div style="background:#0d1424;border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:28px;width:460px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <div style="font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:4px;">Upload Audio File</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:16px;">支援 .mp3 .wav .mp4 .m4a　建議檔案小於 25MB（約 30 分鐘 64kbps）</div>
+            <div id="upload-dropzone" style="border:2px dashed rgba(251,191,36,0.3);border-radius:8px;padding:24px;text-align:center;color:#64748b;font-size:12px;cursor:pointer;transition:border-color 0.2s;"
+                 onclick="document.getElementById('audio-file-input').click()">
+                <div style="font-size:24px;margin-bottom:6px;">🎵</div>
+                <div id="upload-filename">點擊選擇音檔或拖曳至此</div>
+            </div>
+            <div id="upload-progress" style="display:none;margin-top:14px;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;" id="upload-status">正在送出...</div>
+                <div style="background:#080e1c;border-radius:4px;height:6px;overflow:hidden;">
+                    <div id="upload-progress-bar" style="height:100%;background:linear-gradient(90deg,#fbbf24,#f59e0b);width:0%;transition:width 0.3s;border-radius:4px;"></div>
+                </div>
+            </div>
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+                <button onclick="closeUploadModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
+                <button id="upload-confirm-btn" onclick="startAudioTranscribe()" style="padding:7px 18px;border:1px solid rgba(251,191,36,0.4);border-radius:6px;background:rgba(251,191,36,0.08);color:#fbbf24;font-size:11px;cursor:pointer;font-weight:600;">開始轉錄</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Notification Layer / 動態干預層（偏題提醒） -->
+<div id="notification-layer" style="display:none;width:100%;max-width:1200px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:4px;padding:10px 16px;margin-bottom:12px;align-items:center;justify-content:space-between;font-size:12px;color:#fbbf24;">
+    <span id="notification-layer-text">⚠️ 偏題提醒</span>
+    <span style="cursor:pointer;opacity:0.7;padding:0 4px;" onclick="document.getElementById('notification-layer').style.display='none'">✕</span>
+</div>
+
+<!-- Memory & Context Banner / 跨會議記憶提示條 -->
+<div id="memory-banner" style="display:none;width:100%;max-width:1200px;background:rgba(72,200,255,0.06);border:1px solid rgba(72,200,255,0.3);border-radius:4px;padding:10px 16px;margin-bottom:16px;align-items:center;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:8px;">
+    <span id="memory-banner-text" style="color:var(--accent-cyan);">📌 上次會議遺留未完成任務</span>
+    <div style="display:flex;gap:8px;">
+        <button id="memory-banner-bring-in" style="font-size:11px;padding:4px 10px;border-radius:5px;background:rgba(72,200,255,0.12);border:1px solid rgba(72,200,255,0.4);color:var(--accent-cyan);cursor:pointer;">帶入本次 Agenda</button>
+        <button id="memory-banner-close-all" style="font-size:11px;padding:4px 10px;border-radius:5px;background:transparent;border:1px solid var(--border-color);color:var(--text-sub);cursor:pointer;">標記完成</button>
+        <button id="memory-banner-dismiss" style="font-size:11px;padding:4px 10px;border-radius:5px;background:transparent;border:1px solid var(--border-color);color:var(--text-sub);cursor:pointer;">忽略</button>
     </div>
 </div>
 
@@ -607,22 +656,20 @@
         </div>
         <div class="panel-body">
             <div class="report-section" id="report-section">
-                <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div class="section-label">
                     <span>會議摘要 · Summary & Key Decisions</span>
-                    <button id="mail-summary-btn" style="display:none;font-size:11px;padding:4px 10px;border-radius:5px;background:rgba(99,118,162,0.15);border:1px solid rgba(99,118,162,0.4);color:#e2e8f0;cursor:pointer;">📧 Mail Summary</button>
                 </div>
-                <div id="report-content" style="flex:1;overflow-y:auto;padding:0 20px 20px;">
+                <div id="report-content">
                     <div class="placeholder" id="placeholder-report" style="margin-top:30px;">
                         會議結束後<br>點擊「GENERATE REPORT」<br>自動產出摘要與決議
                     </div>
                 </div>
             </div>
             <div class="actions-section" id="actions-section">
-                <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div class="section-label">
                     <span>行動方案 · Action Items</span>
-                    <button id="schedule-btn" style="display:none;font-size:11px;padding:4px 10px;border-radius:5px;background:rgba(99,118,162,0.15);border:1px solid rgba(99,118,162,0.4);color:#e2e8f0;cursor:pointer;">📅 Schedule</button>
                 </div>
-                <div id="actions-content" style="flex:1;overflow-y:auto;padding:0 20px 20px;">
+                <div id="actions-content">
                     <div class="placeholder" id="placeholder-actions" style="margin-top:20px;">
                         Action Items<br>將列於此處
                     </div>
@@ -633,13 +680,30 @@
 
 </div>
 
+<!-- Agent Dispatch Card -->
+<div class="dispatch-card" style="width:100%;max-width:1200px;background:var(--panel-bg);border:1px solid var(--border-color);border-radius:4px;padding:14px 20px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text-main);text-transform:uppercase;">Agent Dispatch Channels</span>
+        <button id="execute-actions-btn" style="font-size:12px;font-weight:700;padding:7px 18px;border-radius:5px;background:rgba(61,232,168,0.12);border:1px solid rgba(61,232,168,0.4);color:var(--accent-green);cursor:pointer;">EXECUTE ACTIONS</button>
+    </div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-sub);">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="寄送含會議摘要與行動方案表格的完整郵件草稿給全體與會者"><input type="checkbox" id="dispatch-draft-email" checked> Draft Email</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="為每筆有效行動方案（有 Owner + Next Check）建立 All-Day 行事曆提醒，開啟前一日通知；同 Owner 同日多筆自動合併"><input type="checkbox" id="dispatch-reminders" checked> Create Outlook Reminders</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" disabled> Sync to MS Planner <span style="font-size:10px;color:#64748b;">(尚未支援)</span></label>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;">Reminders 僅建立行事曆事件（不寄信）；欄位未補全時將擋下整批執行，需補完後才能發送。</div>
+    <div id="dispatch-block-msg" style="display:none;margin-top:10px;font-size:12px;border-radius:4px;padding:8px 12px;"></div>
+</div>
+
 <div class="controls">
     <div class="btn-group-main">
-        <button class="btn btn-primary" id="start-btn">▶ Start Recording</button>
+        <button class="btn btn-primary" id="start-btn">Start Recording</button>
         <button class="btn btn-danger" id="stop-btn"><span class="rec-dot"></span> Stop Recording</button>
-        <button class="btn btn-success" id="report-btn">⚡ Generate Report</button>
+        <button class="btn btn-success" id="report-btn">Generate Report</button>
         <button class="btn btn-export" id="export-btn">Export PDF</button>
         <button class="btn btn-export" id="export-txt-btn">Export TXT</button>
+        <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()">Upload Audio</button>
+        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;">
     </div>
     <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
     <!-- Mobile row 2: Clear + PDF/TXT icon buttons -->
@@ -650,10 +714,43 @@
     </div>
 </div>
 
+<!-- Agent Thought Log -->
+<div id="thought-log-panel" style="width:100%;max-width:1200px;background:var(--panel-bg-2, var(--panel-bg));border:1px solid var(--border-color);border-radius:4px;margin:12px auto 0;font-size:11px;">
+    <div id="thought-log-toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;cursor:pointer;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;">
+        <span>Agent 思考與執行日誌 · Agent Thought Log</span>
+        <span id="thought-log-arrow">▼</span>
+    </div>
+    <div id="thought-log-body" style="display:none;padding:0 16px 12px;font-family:monospace;color:#94a3b8;max-height:160px;overflow-y:auto;"></div>
+</div>
+
 <script>
+    // ── Agent Thought Log ────────────────────────────────────────────
+    function logAgentThought(msg) {
+        const body = document.getElementById('thought-log-body');
+        const line = document.createElement('div');
+        const t = new Date().toTimeString().slice(0, 8);
+        line.textContent = `[${t}] ${msg}`;
+        body.appendChild(line);
+        body.scrollTop = body.scrollHeight;
+    }
+    document.getElementById('thought-log-toggle').addEventListener('click', () => {
+        const b = document.getElementById('thought-log-body');
+        const opening = b.style.display === 'none';
+        b.style.display = opening ? 'block' : 'none';
+        document.getElementById('thought-log-arrow').textContent = opening ? '▲' : '▼';
+    });
+
     // ── Azure Key Management ──────────────────────────────────────────
     let AZURE_KEY = localStorage.getItem('azure_speech_key') || '';
     let AZURE_REGION = localStorage.getItem('azure_speech_region') || 'eastasia';
+
+    // ── 專有名詞 / 技術縮寫詞庫 ───────────────────────────────────────
+    // 用於「提高逐字正確率」：Whisper 轉錄時作為 prompt 提示詞（可提升同音異形詞、專有縮寫的辨識準確度）。
+    // 若要新增/修改公司內部術語，直接編輯這個陣列即可，不需要改 Flowise 端。
+    const MEETING_GLOSSARY = [
+        'MW', 'SST', 'MDC', 'NVIDIA', 'Compal', '仁寶',
+        // TODO: 依實際會議內容持續補充（例如產品代號、內部系統名稱、客戶名稱等）
+    ];
 
     function saveAzureKey() {
         const key = document.getElementById('azure-key-input').value.trim();
@@ -703,6 +800,8 @@
 
         // Auto-detect Chinese + English
         const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(['zh-TW', 'en-US', 'zh-CN']);
+        speechConfig.setProperty('SpeechServiceConnection_SegmentationSilenceTimeoutMs', '5000');
+        speechConfig.setProperty('SpeechServiceConnection_EndSilenceTimeoutMs', '5000');
         const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig);
 
         recognizer.recognized = async (s, e) => {
@@ -710,6 +809,7 @@
                 const text = e.result.text.trim();
                 if (text && text !== '.') {
                     statusText.innerText = 'Processing...';
+                    feedTopicDriftBuffer(text);
                     await sendToFlowise(text, false, label);
                 }
             }
@@ -738,6 +838,7 @@
         stopBtn.style.display = 'flex';
         statusIndicator.classList.add('active');
         document.getElementById('placeholder-transcript').style.display = 'none';
+        logAgentThought('🎙️ 開始錄音，啟動麥克風與系統音訊辨識...');
 
         startTime = Date.now();
         timerInterval = setInterval(() => {
@@ -836,6 +937,7 @@
     // ── Stop Recording ────────────────────────────────────────────────
     stopBtn.addEventListener('click', () => {
         isRecording = false;
+        logAgentThought('⏹️ 停止錄音。');
 
         if (recognizerMic) {
             recognizerMic.stopContinuousRecognitionAsync(() => { recognizerMic.close(); recognizerMic = null; });
@@ -860,6 +962,7 @@
     reportBtn.addEventListener('click', async () => {
         if (isRecording) stopBtn.click();
         statusText.innerText = 'Compiling AI Report...';
+        logAgentThought('⚡ 開始產生會議紀錄...');
         document.getElementById('placeholder-report').style.display = 'none';
         document.getElementById('placeholder-actions').style.display = 'none';
         reportContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;animation:pulse 1s infinite;">正在生成報告...</div>';
@@ -877,13 +980,89 @@
             }
         });
 
-        const prompt = transcriptText
-            ? `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${transcriptText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n[SECTION_SPLIT]\n\n[ ] 負責人：具體行動事項\n[ ] 負責人：具體行動事項\n\n注意：[SECTION_SPLIT] 必須單獨一行，Action Items 每行以 [ ] 開頭。`
-            : '【請產生空白會議紀錄範本，包含會議摘要與 [SECTION_SPLIT] 以及 Action Items 區塊】';
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+
+        // 若逐字稿過長（避免 Groq TPM 超限），先分段濃縮摘要（直接呼叫 Groq，不經 Flowise）
+        let sourceText = transcriptText;
+        if (transcriptText) {
+            try {
+                statusText.innerText = 'Condensing transcript...';
+                if (transcriptText.length > 6000) logAgentThought('🧩 逐字稿過長，先分段濃縮摘要（直接呼叫 Groq）...');
+                sourceText = await summarizeLongTranscript(transcriptText);
+                statusText.innerText = 'Compiling AI Report...';
+            } catch (e) {
+                console.error('逐字稿濃縮失敗，改用原始逐字稿:', e);
+                sourceText = transcriptText;
+            }
+        }
+
+        const actionItemsSpec = `[SECTION_SPLIT]\n\n[ ] Scope（2~6字分類，例如：展示規劃 / 技術研討 / 成本估算）｜Discussion & AR（具體討論內容與待辦事項）｜Owner（負責人姓名，若逐字稿中無法明確判斷請留空）｜Next Check（追蹤日期，格式 MM/DD，若無法判斷請留空）\n[ ] Scope｜Discussion & AR｜Owner｜Next Check\n\n注意：[SECTION_SPLIT] 必須單獨一行；Action Items 每行以 [ ] 開頭，四個欄位一律以全形「｜」分隔，欄位順序不可改變，無法判斷的欄位請留空但仍保留「｜」分隔符號，不要省略。`;
+
+        const prompt = sourceText
+            ? isZhOnly
+                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpec}`
+                : `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpec}`
+            : `【請產生空白會議紀錄範本，包含會議摘要與 ${actionItemsSpec}】`;
 
         lastTranscriptForSchedule = transcriptText;
         await sendToFlowise(prompt, true);
     });
+
+    // ── 逐字稿過長時分段濃縮摘要（避免 Groq TPM 超限；純前處理，不影響 Flowise 用量）──
+    async function summarizeLongTranscript(transcriptText) {
+        const CHUNK_CHARS = 6000; // 保守估算安全字元數
+        if (transcriptText.length <= CHUNK_CHARS) return transcriptText;
+
+        const chunks = [];
+        for (let i = 0; i < transcriptText.length; i += CHUNK_CHARS) {
+            chunks.push(transcriptText.slice(i, i + CHUNK_CHARS));
+        }
+
+        const partialSummaries = [];
+        for (let i = 0; i < chunks.length; i++) {
+            statusText.innerText = `Condensing transcript... (${i + 1}/${chunks.length})`;
+            const result = await callGroq([
+                { role: 'user', content: `請將以下會議逐字稿片段濃縮成重點摘要，保留關鍵數字、技術縮寫（例如 MW、SST、MDC 等，需原樣保留）、決議與負責人，不需要完整格式，直接條列即可：\n\n${chunks[i]}` }
+            ]);
+            partialSummaries.push(result);
+        }
+
+        return partialSummaries.join('\n\n');
+    }
+
+    // ── Groq API（僅用於：逐字稿濃縮、Upload Audio 的 Whisper 轉錄）──────
+    async function callGroq(messages) {
+        const groqKey = localStorage.getItem('groqApiKey');
+        if (!groqKey) throw new Error('Groq API Key 未設定');
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${groqKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: messages,
+                max_tokens: 2048,
+                temperature: 0.3
+            })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || 'Groq API 錯誤');
+        }
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+    }
+
+    function saveGroqKey() {
+        const key = document.getElementById('groq-key-input').value.trim();
+        if (key) { localStorage.setItem('groqApiKey', key); alert('Groq Key 已儲存！'); }
+    }
+    (function loadGroqKey() {
+        const k = localStorage.getItem('groqApiKey');
+        if (k) document.getElementById('groq-key-input').value = k;
+    })();
 
     // ── Clear ─────────────────────────────────────────────────────────
     clearBtn.addEventListener('click', () => {
@@ -896,6 +1075,15 @@
 
     // ── Flowise API ───────────────────────────────────────────────────
     async function sendToFlowise(text, isReportRequest, speakerLabel) {
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+
+        // zh-only 模式：即時字幕不需要翻譯，直接顯示原文，不呼叫 Flowise（節省 TPM）
+        if (!isReportRequest && isZhOnly) {
+            displayTranslation(text, speakerLabel, true);
+            statusText.innerText = 'Listening...';
+            return;
+        }
+
         const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
         try {
             const response = await fetch(flowiseUrl, {
@@ -919,6 +1107,200 @@
         } catch (error) {
             statusText.innerText = 'Connection Error';
             console.error(error);
+        }
+    }
+
+    // ── Top Notification Layer：偏題提醒（僅在填寫 Agenda 時啟用）──────
+    let topicDriftBuffer = '';
+    let lastTopicCheckAt = 0;
+    const TOPIC_CHECK_INTERVAL_MS = 90000; // 每 90 秒最多檢查一次，避免頻繁呼叫 Flowise
+
+    function feedTopicDriftBuffer(text) {
+        const agenda = document.getElementById('agenda-input').value.trim();
+        if (!agenda) return; // 未填寫 Agenda，不啟用偏題提醒
+
+        topicDriftBuffer = (topicDriftBuffer + ' ' + text).slice(-800);
+
+        const now = Date.now();
+        if (now - lastTopicCheckAt >= TOPIC_CHECK_INTERVAL_MS) {
+            lastTopicCheckAt = now;
+            checkTopicDrift(agenda, topicDriftBuffer);
+        }
+    }
+
+    async function checkTopicDrift(agenda, recentText) {
+        try {
+            const instruction = `【請判斷會議是否偏離討論主題】\n會議 Agenda：${agenda}\n最近討論內容：${recentText}\n\n請只回覆以下兩種格式之一，不要有其他文字：\nON_TOPIC\n或\nOFF_TOPIC：（15字內說明目前實際在討論什麼）`;
+            const response = await fetch(FLOWISE_AGENT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ question: instruction, overrideConfig: { sessionId: `topic-check-${Date.now()}` } })
+            });
+            const data = await response.json();
+            const resultText = (typeof data === 'string' ? data : (data.text || data.output || data.answer || '')).trim();
+
+            const layer = document.getElementById('notification-layer');
+            if (resultText.startsWith('OFF_TOPIC')) {
+                const reason = resultText.replace(/^OFF_TOPIC[：:]?\s*/, '');
+                document.getElementById('notification-layer-text').textContent = `⚠️ 偏題提醒：${reason || '目前討論可能已偏離 Agenda'}，建議回歸主軸`;
+                layer.style.display = 'flex';
+                logAgentThought(`🧠 偵測到討論可能偏離 Agenda「${agenda}」：${reason}`);
+            } else {
+                layer.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('偏題判斷失敗（略過，不影響其他功能）:', e);
+        }
+    }
+
+
+
+    function handleAudioUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        pendingAudioFile = file;
+        document.getElementById('upload-filename').textContent = `${file.name}　（${(file.size/1024/1024).toFixed(1)} MB）`;
+        const modal = document.getElementById('upload-modal');
+        modal.style.display = 'flex';
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-confirm-btn').disabled = false;
+        input.value = '';
+    }
+
+    document.getElementById('audio-file-input').addEventListener('change', function() {
+        handleAudioUpload(this);
+    });
+
+    function closeUploadModal() {
+        document.getElementById('upload-modal').style.display = 'none';
+        pendingAudioFile = null;
+    }
+
+    async function startAudioTranscribe() {
+        const groqKey = localStorage.getItem('groqApiKey');
+        if (!groqKey) { alert('請先在上方輸入並儲存 Groq API Key！'); return; }
+        if (!pendingAudioFile) { alert('請先選擇音檔！'); return; }
+
+        const btn = document.getElementById('upload-confirm-btn');
+        btn.disabled = true;
+        const progress = document.getElementById('upload-progress');
+        const statusEl = document.getElementById('upload-status');
+        const bar = document.getElementById('upload-progress-bar');
+        progress.style.display = 'block';
+
+        try {
+            // Step 1: Whisper 轉錄（直接呼叫 Groq，Flowise 無 STT 能力）
+            statusEl.textContent = '上傳中，請稍候...';
+            bar.style.width = '20%';
+            logAgentThought(`📂 偵測到使用者上傳音訊檔：${pendingAudioFile.name}，啟動 Whisper 轉錄中...`);
+
+            const formData = new FormData();
+            formData.append('file', pendingAudioFile);
+            formData.append('model', 'whisper-large-v3');
+            formData.append('response_format', 'verbose_json');
+            formData.append('language', 'zh');
+            formData.append('prompt', `以下是繁體中文會議內容，內容可能包含以下專有名詞或技術縮寫，請維持原文拼寫，不要音譯或更改：${MEETING_GLOSSARY.join('、')}`);
+
+            const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${groqKey}` },
+                body: formData
+            });
+
+            if (!whisperRes.ok) {
+                const err = await whisperRes.json();
+                throw new Error(err.error?.message || '轉錄失敗');
+            }
+
+            bar.style.width = '60%';
+            statusEl.textContent = '轉錄完成，正在翻譯...';
+            logAgentThought('⚡ 已完成音訊轉錄，套用專有名詞詞庫並開始逐句翻譯...');
+
+            const whisperData = await whisperRes.json();
+            const segments = whisperData.segments || [];
+
+            if (segments.length === 0) {
+                throw new Error('沒有偵測到語音內容');
+            }
+
+            // Step 2: 逐句插入逐字稿，並（非 zh-only 模式下）呼叫 Flowise 翻譯
+            closeUploadModal();
+
+            const transcriptEl = document.getElementById('transcript-area');
+            const placeholder = transcriptEl.querySelector('.placeholder');
+            if (placeholder) placeholder.remove();
+
+            const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+
+            for (const seg of segments) {
+                const startTime = new Date(seg.start * 1000).toISOString().substr(11, 8);
+                const text = seg.text.trim();
+                if (!text) continue;
+
+                const block = document.createElement('div');
+                block.className = 'translation-block';
+                block.dataset.speaker = '';
+                block.innerHTML = `
+                    <div class="translation-meta">
+                        <span class="translation-time">${startTime}</span>
+                        <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
+                    </div>
+                    <div class="original-text">${text}</div>
+                    ${isZhOnly ? '' : `<div class="translated-text" style="color:var(--text-sub);font-style:italic;">翻譯中...</div>`}
+                `;
+                transcriptEl.appendChild(block);
+
+                const badge = block.querySelector('.badge-empty');
+                badge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    buildDropdown(badge, block);
+                });
+
+                const origEl = block.querySelector('.original-text');
+                const transEl = block.querySelector('.translated-text');
+                if (origEl) makeEditable(origEl, transEl);
+
+                transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+                if (!isZhOnly) translateSegment(block, text);
+            }
+
+        } catch (err) {
+            statusEl.textContent = `錯誤：${err.message}`;
+            bar.style.width = '100%';
+            bar.style.background = '#ef4444';
+            btn.disabled = false;
+        }
+    }
+
+    // 逐句翻譯：收斂進 Flowise（與即時字幕共用同一個 Tool Agent Chatflow）
+    async function translateSegment(block, text) {
+        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
+        const translatedEl = block.querySelector('.translated-text');
+        if (isZhOnly) {
+            if (translatedEl) translatedEl.remove();
+            return;
+        }
+        try {
+            const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+            const res = await fetch(flowiseUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ question: `請將以下文字翻譯成英文（若已是英文則翻譯成繁體中文；若是簡體中文請先轉換為繁體中文再翻譯成英文），只輸出譯文，不要解釋：\n${text}` })
+            });
+            const data = await res.json();
+            const translated = (typeof data === 'string' ? data : (data.text || data.output || data.answer || '')).trim();
+            const el = block.querySelector('.translated-text');
+            if (el && translated) {
+                el.textContent = translated;
+                el.style.fontStyle = '';
+                el.style.color = '';
+            }
+        } catch (e) {
+            const el = block.querySelector('.translated-text');
+            if (el) el.textContent = '（翻譯失敗）';
         }
     }
 
@@ -1208,7 +1590,6 @@
 
     function displayReport(rawText, transcriptText) {
         lastReportRawText = rawText;
-        document.getElementById('mail-summary-btn').style.display = 'inline-block';
 
         const sections = rawText.split('[SECTION_SPLIT]');
         let summaryHtml = '';
@@ -1235,250 +1616,408 @@
         reportContent.innerHTML = '';
         reportContent.appendChild(reportDiv);
 
-        actionsContent.innerHTML = '';
-        if (actionsRaw) {
-            const lines = actionsRaw.split('\n');
-            lines.forEach(line => {
-                const trimmed = line.trim();
-                if (!trimmed) return;
-                if (trimmed.startsWith('[ ]') || trimmed.startsWith('- [ ]')) {
-                    const text = trimmed.replace(/^-?\s*\[ \]\s*/, '');
-                    if (!text) return;
-                    const item = document.createElement('div');
-                    item.className = 'action-item';
-                    item.innerHTML = `<div class="action-checkbox">✓</div><div class="action-text">${text}</div>`;
-                    item.addEventListener('click', () => item.classList.toggle('done'));
-                    actionsContent.appendChild(item);
-                }
-            });
-        }
-        if (actionsContent.children.length === 0) {
-            actionsContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;padding:12px;">無 Action Items</div>';
-            document.getElementById('schedule-btn').style.display = 'none';
-        } else {
-            document.getElementById('schedule-btn').style.display = 'inline-block';
-        }
+        const newItems = actionsRaw ? parseActionItemLines(actionsRaw) : [];
+        const beforeCount = loadActionItemsStore().length;
+        const merged = mergeActionItems(newItems);
+        renderActionItemsTable(merged);
+        renderMemoryBanner();
+        logAgentThought(`📋 會議紀錄已產生，Action Items 更新（本次 ${newItems.length} 筆，追蹤清單共 ${merged.length} 筆，較先前 ${beforeCount} 筆）。`);
 
         reportContent.scrollTop = 0;
         actionsContent.scrollTop = 0;
     }
 
-    // ── Schedule (Structured Action Items → Outlook Draft) ──────────────
-    const FLOWISE_JSON_EXTRACTOR_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/6a7d7a6f-2b4e-4a77-b29b-fd1e9c0b14b2";
-    const FLOWISE_AGENT_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+    // ── Action Items：跨會議記憶（Phase 1：以單一 project_id 隔離，Phase 3 將改為依專案主題）──
+    const ACTION_ITEMS_PROJECT_ID = 'default';
 
-    document.getElementById('mail-summary-btn').addEventListener('click', async () => {
-        if (!lastReportRawText) return;
-        if (attendees.length === 0) {
-            alert('尚未設定與會人員，請先於上方欄位輸入或匯入與會人員名單。');
+    function loadActionItemsStore() {
+        try {
+            const raw = localStorage.getItem(`actionItems_${ACTION_ITEMS_PROJECT_ID}`);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error('讀取 Action Items 記憶失敗:', e);
+            return [];
+        }
+    }
+
+    function saveActionItemsStore(items) {
+        localStorage.setItem(`actionItems_${ACTION_ITEMS_PROJECT_ID}`, JSON.stringify(items));
+    }
+
+    function getTodayMMDD() {
+        return new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit' });
+    }
+
+    function normalizeNextCheck(raw) {
+        const trimmed = (raw || '').trim();
+        return /^\d{1,2}\/\d{1,2}$/.test(trimmed) ? trimmed : '';
+    }
+
+    // 解析 Flowise 回傳的 Action Items 原始文字（Scope｜Discussion & AR｜Owner｜Next Check）
+    function parseActionItemLines(actionsRaw) {
+        const lines = actionsRaw.split('\n');
+        const parsed = [];
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+            if (!trimmed.startsWith('[ ]') && !trimmed.startsWith('- [ ]')) return;
+            const text = trimmed.replace(/^-?\s*\[ \]\s*/, '');
+            if (!text) return;
+
+            const parts = text.split('｜').map(s => s.trim());
+            if (parts.length >= 4) {
+                parsed.push({
+                    scope: parts[0] || '一般',
+                    discussion: parts[1] || '',
+                    owner: parts[2] || '',
+                    nextCheck: normalizeNextCheck(parts[3])
+                });
+            } else {
+                // 舊格式相容（例如「負責人：事項」自由格式），無法判斷 Scope/Next Check 時留待手動補全
+                const ownerMatch = text.match(/^([^：:]{1,8})[：:]\s*(.+)$/);
+                parsed.push({
+                    scope: '一般',
+                    discussion: ownerMatch ? ownerMatch[2] : text,
+                    owner: ownerMatch ? ownerMatch[1] : '',
+                    nextCheck: ''
+                });
+            }
+        });
+        return parsed;
+    }
+
+    // 跨會議記憶合併：同 Scope 視為同一任務 → 保留原編號，新進度以 [MM/DD] 前綴追加；
+    // 新任務接續歷史最大編號；先前未結案任務即使本次未提及仍保留在追蹤清單中。
+    function mergeActionItems(newItems) {
+        const stored = loadActionItemsStore();
+        const todayTag = getTodayMMDD();
+        let maxNo = stored.reduce((m, i) => Math.max(m, i.no), 0);
+        const usedStoredIdx = new Set();
+
+        newItems.forEach(ni => {
+            const matchIdx = stored.findIndex((s, idx) =>
+                !usedStoredIdx.has(idx) && s.scope.trim().toLowerCase() === ni.scope.trim().toLowerCase()
+            );
+            if (matchIdx > -1) {
+                usedStoredIdx.add(matchIdx);
+                const s = stored[matchIdx];
+                if (ni.discussion) s.discussion = `${s.discussion}\n[${todayTag}] ${ni.discussion}`;
+                if (ni.owner) s.owner = ni.owner;
+                if (ni.nextCheck) s.nextCheck = ni.nextCheck;
+            } else {
+                maxNo += 1;
+                stored.push({
+                    no: maxNo,
+                    scope: ni.scope,
+                    discussion: `[${todayTag}] ${ni.discussion}`,
+                    owner: ni.owner,
+                    nextCheck: ni.nextCheck
+                });
+            }
+        });
+
+        stored.sort((a, b) => a.no - b.no);
+        saveActionItemsStore(stored);
+        return stored;
+    }
+
+    function updateActionItemField(no, field, value) {
+        const stored = loadActionItemsStore();
+        const item = stored.find(i => i.no === no);
+        if (!item) return;
+        item[field] = value;
+        saveActionItemsStore(stored);
+        renderActionItemsTable(stored);
+    }
+
+    function closeActionItem(no) {
+        const stored = loadActionItemsStore().filter(i => i.no !== no);
+        saveActionItemsStore(stored);
+        renderActionItemsTable(stored);
+        renderMemoryBanner();
+    }
+
+    // ── Memory & Context Banner：跨會議記憶提示條 ───────────────────────
+    function renderMemoryBanner() {
+        const banner = document.getElementById('memory-banner');
+        const items = loadActionItemsStore();
+        if (items.length === 0) {
+            banner.style.display = 'none';
+            return;
+        }
+        const preview = items.slice(0, 3).map(i => `${i.owner || '未指派'}「${i.scope}」`).join('、');
+        const more = items.length > 3 ? ` 等 ${items.length} 項` : '';
+        document.getElementById('memory-banner-text').textContent = `📌 上次會議遺留未完成任務：${preview}${more}`;
+        banner.style.display = 'flex';
+    }
+
+    document.getElementById('memory-banner-bring-in').addEventListener('click', () => {
+        const items = loadActionItemsStore();
+        const summary = items.map(i => `${i.scope}（${i.owner || '未指派'}，Next Check: ${i.nextCheck || '未定'}）`).join('；');
+        const agendaInput = document.getElementById('agenda-input');
+        const carriedText = `延續追蹤：${summary}`;
+        agendaInput.value = agendaInput.value.trim() ? `${agendaInput.value.trim()}；${carriedText}` : carriedText;
+        document.getElementById('memory-banner').style.display = 'none';
+        logAgentThought(`📌 已將 ${items.length} 項未結案任務帶入本次 Agenda。`);
+    });
+
+    document.getElementById('memory-banner-close-all').addEventListener('click', () => {
+        const items = loadActionItemsStore();
+        if (items.length === 0) return;
+        if (!confirm(`確定將全部 ${items.length} 項未完成任務標記為完成？完成後將移出下次追蹤。`)) return;
+        saveActionItemsStore([]);
+        renderActionItemsTable([]);
+        renderMemoryBanner();
+        logAgentThought(`✓ 已將 ${items.length} 項未結案任務標記為完成。`);
+    });
+
+    document.getElementById('memory-banner-dismiss').addEventListener('click', () => {
+        document.getElementById('memory-banner').style.display = 'none';
+        logAgentThought('📌 已忽略跨會議記憶提示（資料仍保留，下次仍會顯示）。');
+    });
+
+    renderMemoryBanner(); // 頁面載入時檢查是否有上次會議遺留的未結案任務
+
+    // ── Action Items 表格渲染：缺 Owner / Next Check 標紅並提供補全欄位 ──
+    function renderActionItemsTable(items) {
+        actionsContent.innerHTML = '';
+        if (!items || items.length === 0) {
+            actionsContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;padding:12px;">無 Action Items</div>';
             return;
         }
 
-        const missingEmail = attendees.filter(a => !a.email);
-        if (missingEmail.length > 0) {
-            const proceed = confirm(
-                `以下與會者缺少 Email，草稿可能無法正確帶入收件人：\n${missingEmail.map(a => a.name).join('、')}\n\n是否仍要繼續？`
-            );
-            if (!proceed) return;
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;';
+        table.innerHTML = `
+            <tr style="color:var(--text-sub);text-transform:uppercase;">
+                <th style="text-align:left;padding:4px 6px;width:24px;">No.</th>
+                <th style="text-align:left;padding:4px 6px;width:70px;">Scope</th>
+                <th style="text-align:left;padding:4px 6px;">Discussion & AR</th>
+                <th style="text-align:left;padding:4px 6px;width:76px;">Owner</th>
+                <th style="text-align:left;padding:4px 6px;width:78px;">Next Check</th>
+                <th style="width:20px;"></th>
+            </tr>
+        `;
+
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.style.cssText = 'border-top:1px solid var(--border-color);';
+            tr.dataset.no = item.no;
+
+            const discussionHtml = (item.discussion || '').replace(/\n/g, '<br>');
+
+            const ownerCell = item.owner
+                ? `<td style="padding:6px;">${item.owner}</td>`
+                : `<td style="padding:6px;background:rgba(239,68,68,0.06);"><select class="ai-owner-select" style="width:100%;background:var(--panel-bg);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;font-size:10px;border-radius:3px;">
+                    <option value="">⚠️ 選擇 Owner</option>
+                    ${attendees.map(a => `<option value="${a.name}">${a.name}</option>`).join('')}
+                   </select></td>`;
+
+            const nextCheckCell = item.nextCheck
+                ? `<td style="padding:6px;">${item.nextCheck}</td>`
+                : `<td style="padding:6px;color:#fbbf24;background:rgba(239,68,68,0.06);"><input type="date" class="ai-nextcheck-input" style="width:100%;background:var(--panel-bg);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;font-size:10px;border-radius:3px;"></td>`;
+
+            tr.innerHTML = `
+                <td style="padding:6px;">${item.no}</td>
+                <td style="padding:6px;">${item.scope}</td>
+                <td style="padding:6px;">${discussionHtml}</td>
+                ${ownerCell}
+                ${nextCheckCell}
+                <td style="padding:6px;text-align:center;"><span class="ai-done-btn" title="標記完成，將移出下次追蹤" style="cursor:pointer;color:var(--accent-green);">✓</span></td>
+            `;
+            table.appendChild(tr);
+
+            const ownerSelect = tr.querySelector('.ai-owner-select');
+            if (ownerSelect) {
+                ownerSelect.addEventListener('change', () => updateActionItemField(item.no, 'owner', ownerSelect.value));
+            }
+            const dateInput = tr.querySelector('.ai-nextcheck-input');
+            if (dateInput) {
+                dateInput.addEventListener('change', () => {
+                    const parts = dateInput.value.split('-'); // YYYY-MM-DD
+                    const mmdd = parts.length === 3 ? `${parts[1]}/${parts[2]}` : '';
+                    updateActionItemField(item.no, 'nextCheck', mmdd);
+                });
+            }
+            tr.querySelector('.ai-done-btn').addEventListener('click', () => {
+                if (confirm(`確定將 No.${item.no}「${item.scope}」標記為完成？完成後將移出下次追蹤清單。`)) {
+                    closeActionItem(item.no);
+                }
+            });
+        });
+
+        actionsContent.appendChild(table);
+    }
+
+    // ── Agent Dispatch Card：Draft Email + Create Outlook Reminders ─────
+    const FLOWISE_AGENT_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+
+    document.getElementById('execute-actions-btn').addEventListener('click', executeAgentDispatch);
+
+    function showDispatchMsg(html, success) {
+        const msgBox = document.getElementById('dispatch-block-msg');
+        msgBox.style.display = 'block';
+        msgBox.innerHTML = html;
+        if (success) {
+            msgBox.style.background = 'rgba(61,232,168,0.08)';
+            msgBox.style.borderColor = 'rgba(61,232,168,0.35)';
+            msgBox.style.color = 'var(--accent-green)';
+        } else {
+            msgBox.style.background = 'rgba(239,68,68,0.08)';
+            msgBox.style.borderColor = 'rgba(239,68,68,0.35)';
+            msgBox.style.color = '#f87171';
+        }
+    }
+
+    async function executeAgentDispatch() {
+        const msgBox = document.getElementById('dispatch-block-msg');
+        msgBox.style.display = 'none';
+        document.querySelectorAll('#actions-content tr').forEach(tr => { tr.style.background = ''; });
+
+        const draftEmailChecked = document.getElementById('dispatch-draft-email').checked;
+        const remindersChecked = document.getElementById('dispatch-reminders').checked;
+
+        if (!draftEmailChecked && !remindersChecked) {
+            showDispatchMsg('請至少勾選一項要執行的動作。', false);
+            return;
+        }
+        if (!lastReportRawText) {
+            showDispatchMsg('尚未產生會議紀錄，請先點擊 GENERATE REPORT。', false);
+            return;
+        }
+        if (attendees.length === 0) {
+            showDispatchMsg('尚未設定與會人員，請先於上方欄位輸入或匯入與會人員名單。', false);
+            return;
         }
 
-        const btn = document.getElementById('mail-summary-btn');
-        const originalLabel = btn.textContent;
-        btn.textContent = '寄送中...';
-        btn.disabled = true;
+        const items = loadActionItemsStore();
 
-        const cleanedReport = lastReportRawText.replace(/\[SECTION_SPLIT\]/g, '\n\n');
+        // 防呆：整批檢查缺 Owner / Next Check，任一筆有問題就整批擋下，不執行任何動作
+        if (remindersChecked && items.length > 0) {
+            const problems = [];
+            items.forEach(item => {
+                const missing = [];
+                if (!item.owner) missing.push('Owner');
+                if (!item.nextCheck) missing.push('Next Check');
+                if (missing.length > 0) problems.push({ item, missing });
+            });
+
+            if (problems.length > 0) {
+                const list = problems.map(p => `No.${p.item.no}「${p.item.scope}」缺少：${p.missing.join('、')}`).join('<br>');
+                showDispatchMsg(`⛔ 尚未執行：以下項目欄位未補全，請補完後再按一次 EXECUTE ACTIONS<br>${list}`, false);
+                const firstBadRow = document.querySelector(`#actions-content tr[data-no="${problems[0].item.no}"]`);
+                if (firstBadRow) {
+                    firstBadRow.style.background = 'rgba(239,68,68,0.12)';
+                    firstBadRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+        }
+
+        const btn = document.getElementById('execute-actions-btn');
+        const originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '執行中...';
+        logAgentThought(`🚀 開始執行 Agent Dispatch：${[draftEmailChecked && 'Draft Email', remindersChecked && 'Create Outlook Reminders'].filter(Boolean).join('、')}`);
+
+        const results = [];
+        try {
+            if (draftEmailChecked) {
+                results.push(await dispatchDraftEmail(items));
+            }
+            if (remindersChecked) {
+                results.push(await dispatchOutlookReminders(items));
+            }
+            showDispatchMsg(`✓ 執行完成：${results.join('；')}`, true);
+            logAgentThought(`✓ Agent Dispatch 執行完成：${results.join('；')}`);
+        } catch (err) {
+            console.error(err);
+            showDispatchMsg('執行過程發生錯誤，請稍後再試。', false);
+            logAgentThought(`✗ Agent Dispatch 執行失敗：${err.message || err}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+        }
+    }
+
+    // Draft Email：完整會議摘要 + Action Items 表格，收件人為全體與會者
+    async function dispatchDraftEmail(items) {
+        const cleanedReport = lastReportRawText.replace(/\[SECTION_SPLIT\]/g, '\n\n').replace(/｜/g, ' ｜ ');
         const attendeeListStr = attendees
             .map(a => a.email ? `${a.name} <${a.email}>` : `${a.name}（無 Email）`)
             .join('；');
+        const tableText = items.length > 0
+            ? items.map(i => `No.${i.no}｜${i.scope}｜${(i.discussion || '').replace(/\n/g, ' ')}｜Owner:${i.owner || '—'}｜Next Check:${i.nextCheck || '—'}`).join('\n')
+            : '（無 Action Items）';
 
         const instruction = `請幫我草擬一封 Outlook 郵件草稿，收件人為本次會議全體與會者：${attendeeListStr}。\n` +
-            `郵件標題請設為「會議紀錄摘要」，內容請完整附上以下會議紀錄全文（摘要、決議、行動方案皆需包含，請勿省略或重新摘要，直接附上原文）：\n\n` +
-            `${cleanedReport}`;
+            `郵件標題請設為「會議紀錄摘要」，內容請包含以下會議摘要全文，以及完整的 Action Items 表格（請保留每一筆的 No./Scope/Discussion & AR/Owner/Next Check，勿省略或重新摘要）：\n\n` +
+            `【會議摘要與討論】\n${cleanedReport}\n\n【Action Items】\n${tableText}`;
 
-        try {
+        const response = await fetch(FLOWISE_AGENT_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ question: instruction, overrideConfig: { sessionId: `dispatch-email-${Date.now()}` } })
+        });
+        if (!response.ok) throw new Error('Draft Email 建立失敗');
+        await response.json();
+        return 'Draft Email 已建立';
+    }
+
+    // Create Outlook Reminders：All-Day Event，開啟前一日提醒；同 Owner 同 Next Check 合併成一筆
+    async function dispatchOutlookReminders(items) {
+        const eligible = items.filter(i => i.owner && i.nextCheck);
+        if (eligible.length === 0) return 'Outlook 全天提醒事件：無有效項目';
+
+        const groups = {};
+        eligible.forEach(i => {
+            const key = `${i.owner}__${i.nextCheck}`;
+            if (!groups[key]) groups[key] = { owner: i.owner, nextCheck: i.nextCheck, items: [] };
+            groups[key].items.push(i);
+        });
+        const groupList = Object.values(groups);
+
+        for (const g of groupList) {
+            const subject = g.items.length > 1
+                ? `${g.owner} 今日待辦：${g.items.map(i => i.scope).join('、')}`
+                : `${g.owner}｜${g.items[0].scope}`;
+            const body = g.items.map(i => `【${i.scope}】\n${(i.discussion || '').replace(/\n/g, '\n')}`).join('\n\n');
+            const match = attendees.find(a => a.name === g.owner);
+            const ownerContact = match && match.email ? `${g.owner} <${match.email}>` : `${g.owner}（無 Email，請手動指派）`;
+
+            const instruction = `請在 Outlook 行事曆建立一個全天事件（All-Day Event，isAllDay 設為 true，不需寄送郵件邀請）。\n` +
+                `事件標題：「${subject}」\n` +
+                `事件日期：${resolveFullDate(g.nextCheck)}\n` +
+                `參與者／指派對象：${ownerContact}\n` +
+                `請開啟提醒通知，並設定為事件開始前一天提醒（reminder：1 day before）。\n` +
+                `事件說明內容：\n${body}`;
+
             const response = await fetch(FLOWISE_AGENT_URL, {
                 method: 'POST',
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({
-                    question: instruction,
-                    overrideConfig: { sessionId: `mail-summary-${Date.now()}` }
-                })
+                body: JSON.stringify({ question: instruction, overrideConfig: { sessionId: `dispatch-reminder-${Date.now()}-${g.owner}` } })
             });
-            const data = await response.json();
-            const resultText = typeof data === 'string' ? data : (data.text || data.output || data.answer || JSON.stringify(data));
-            alert(resultText);
-        } catch (err) {
-            console.error(err);
-            alert('草稿建立失敗，請稍後再試。');
-        } finally {
-            btn.textContent = originalLabel;
-            btn.disabled = false;
-        }
-    });
-
-    let scheduleItems = [];
-
-    document.getElementById('schedule-btn').addEventListener('click', async () => {
-        if (!lastTranscriptForSchedule) return;
-        const btn = document.getElementById('schedule-btn');
-        const originalLabel = btn.textContent;
-        btn.textContent = '解析中...';
-        btn.disabled = true;
-
-        try {
-            const today = new Date().toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' });
-            const prompt = `今天日期是 ${today}（台北時間）。\n\n${lastTranscriptForSchedule}`;
-            const response = await fetch(FLOWISE_JSON_EXTRACTOR_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ question: prompt })
-            });
-            const data = await response.json();
-            const rawText = typeof data === 'string' ? data : (data.text || data.output || data.answer || '');
-            const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) throw new Error('未找到有效 JSON');
-            scheduleItems = JSON.parse(jsonMatch[0]);
-            openScheduleModal();
-        } catch (err) {
-            console.error(err);
-            alert('解析待辦事項失敗，請稍後再試。');
-        } finally {
-            btn.textContent = originalLabel;
-            btn.disabled = false;
-        }
-    });
-
-    function openScheduleModal() {
-        let modal = document.getElementById('schedule-modal');
-        if (modal) modal.remove();
-
-        modal = document.createElement('div');
-        modal.id = 'schedule-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
-
-        const card = document.createElement('div');
-        card.style.cssText = 'background:#0f1a2a;border:1px solid rgba(99,118,162,0.3);border-radius:10px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;';
-
-        let itemsHtml = scheduleItems.map((item, idx) => {
-            const missingEmailNames = item.type === 'meeting' && item.attendees
-                ? item.attendees.filter(name => {
-                    const match = attendees.find(a => a.name === name);
-                    return !match || !match.email;
-                  })
-                : [];
-            return `
-            <div class="schedule-item" data-idx="${idx}" style="border:1px solid rgba(99,118,162,0.25);border-radius:8px;padding:12px;margin-bottom:10px;">
-                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-                    <input type="checkbox" class="sched-checkbox" checked style="margin-top:3px;">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:600;color:#e2e8f0;">
-                            ${item.type === 'meeting' ? '📅' : '✓'} ${item.title || '(未命名)'}
-                        </div>
-                        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
-                            負責人：${item.assignee || 'Unassigned'}
-                            ${item.due_date ? ' · ' + item.due_date : ''}
-                        </div>
-                        ${item.type === 'meeting' && item.attendees ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">與會：${item.attendees.join(', ')}</div>` : ''}
-                        ${missingEmailNames.length > 0 ? `<div style="font-size:10.5px;color:#fb923c;margin-top:2px;">⚠ 缺少 Email：${missingEmailNames.join('、')}</div>` : ''}
-                        ${item.notes ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${item.notes}</div>` : ''}
-                    </div>
-                </label>
-            </div>
-        `;
-        }).join('');
-
-
-        if (scheduleItems.length === 0) {
-            itemsHtml = '<div style="color:var(--text-sub);font-size:13px;">未解析出任何待辦事項。</div>';
+            if (!response.ok) throw new Error(`Outlook 提醒事件建立失敗：${subject}`);
+            await response.json();
         }
 
-        card.innerHTML = `
-            <div style="font-size:15px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">確認待辦事項</div>
-            <div style="font-size:11px;color:#94a3b8;margin-bottom:14px;">勾選要建立 Outlook 草稿的項目，確認後將自動生成草稿（不會直接寄出）。</div>
-            <div id="schedule-items-list">${itemsHtml}</div>
-            <div style="display:flex;gap:8px;margin-top:14px;">
-                <button id="schedule-confirm-btn" style="flex:1;padding:9px;border-radius:6px;background:#16a34a;border:none;color:white;font-size:13px;cursor:pointer;">確認並建立草稿</button>
-                <button id="schedule-cancel-btn" style="padding:9px 16px;border-radius:6px;background:rgba(99,118,162,0.15);border:1px solid rgba(99,118,162,0.4);color:#e2e8f0;font-size:13px;cursor:pointer;">取消</button>
-            </div>
-            <div id="schedule-status" style="font-size:12px;color:#94a3b8;margin-top:10px;"></div>
-        `;
-
-        modal.appendChild(card);
-        document.body.appendChild(modal);
-
-        document.getElementById('schedule-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-        document.getElementById('schedule-confirm-btn').addEventListener('click', submitScheduleDrafts);
+        return `Outlook 全天提醒事件已建立（共 ${groupList.length} 筆，已合併同 Owner 同日項目）`;
     }
 
-    // 將姓名陣列對照全域 attendees 名單，盡量補上 Email
-    function resolveAttendeeContacts(names) {
-        if (!names || names.length === 0) return [];
-        return names.map(name => {
-            const match = attendees.find(a => a.name === name);
-            return match && match.email ? `${name} <${match.email}>` : `${name}（無 Email，請手動補上）`;
-        });
+    // Next Check 僅有 MM/DD，補上年份（若該日期已明顯過去超過一個月，視為指向明年同月日）
+    function resolveFullDate(mmdd) {
+        const [mm, dd] = mmdd.split('/').map(Number);
+        const todayTaipei = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+        let year = todayTaipei.getFullYear();
+        const candidate = new Date(year, mm - 1, dd);
+        if (candidate < todayTaipei && (todayTaipei - candidate) > 1000 * 60 * 60 * 24 * 30) {
+            year += 1;
+        }
+        return `${year}/${String(mm).padStart(2, '0')}/${String(dd).padStart(2, '0')}`;
     }
 
-    async function submitScheduleDrafts() {
-        const checkboxes = document.querySelectorAll('.sched-checkbox');
-        const statusEl = document.getElementById('schedule-status');
-        const confirmBtn = document.getElementById('schedule-confirm-btn');
-        const selected = [];
-        checkboxes.forEach((cb, idx) => { if (cb.checked) selected.push(scheduleItems[idx]); });
-
-        if (selected.length === 0) {
-            statusEl.textContent = '請至少勾選一項。';
-            return;
-        }
-
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '建立草稿中...';
-
-        for (let i = 0; i < selected.length; i++) {
-            const item = selected[i];
-            statusEl.textContent = `處理中 (${i + 1}/${selected.length})：${item.title}`;
-
-            let instruction;
-            if (item.type === 'meeting') {
-                const contacts = resolveAttendeeContacts(item.attendees);
-                const duration = item.duration_minutes || 60;
-                instruction = `請幫我在 Outlook 行事曆建立一個會議事件（Calendar Event，不是郵件）。` +
-                    `標題：「${item.title}」，開始時間：${item.due_date || '（時間未明確，請於說明中註明待確認）'}，` +
-                    `會議時長：${duration} 分鐘，與會人員：${contacts.length > 0 ? contacts.join('；') : '（未提供與會者）'}。` +
-                    `會議說明：${item.notes || item.title}。`;
-            } else {
-                instruction = `請幫我草擬一封 Outlook 郵件草稿，提醒負責人 ${item.assignee} 處理以下任務：「${item.title}」，期限：${item.due_date || '（未明確期限）'}。補充說明：${item.notes || '無'}。`;
-            }
-
-            try {
-                const response = await fetch(FLOWISE_AGENT_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({
-                        question: instruction,
-                        overrideConfig: { sessionId: `schedule-${Date.now()}-${i}` }
-                    })
-                });
-                const data = await response.json();
-                const resultText = typeof data === 'string' ? data : (data.text || data.output || data.answer || JSON.stringify(data));
-                statusEl.textContent = `✓ ${item.title}：${resultText.slice(0, 80)}`;
-            } catch (err) {
-                console.error(err);
-                statusEl.textContent = `✗ ${item.title} 失敗，請稍後重試。`;
-            }
-        }
-
-        confirmBtn.textContent = '全部完成';
-        setTimeout(() => {
-            const modal = document.getElementById('schedule-modal');
-            if (modal) modal.remove();
-        }, 2500);
-    }
 
     // ── Export PDF ────────────────────────────────────────────────────
     document.getElementById('export-btn').addEventListener('click', () => {
