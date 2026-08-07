@@ -500,6 +500,19 @@
             /* Speaker dropdown: never print */
             .speaker-dropdown { display: none !important; }
         }
+
+        /* ── Agent Dispatch Card: lifted surface ── */
+        .dispatch-card {
+            position: relative;
+            overflow: hidden;
+            background: rgba(20, 34, 58, 0.92);
+            border: 1px solid #2c5a8f;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+        .dispatch-card::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
     </style>
 </head>
 <body>
@@ -681,15 +694,15 @@
 </div>
 
 <!-- Agent Dispatch Card -->
-<div class="dispatch-card" style="width:100%;max-width:1200px;background:var(--panel-bg);border:1px solid var(--border-color);border-radius:4px;padding:14px 20px;margin-bottom:16px;">
+<div class="dispatch-card" style="width:100%;max-width:1200px;border-radius:4px;padding:14px 20px;margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:13px;font-weight:700;color:var(--text-main);text-transform:uppercase;">Agent Dispatch Channels</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:1px;">Agent Dispatch Channels</span>
         <button id="execute-actions-btn" style="font-size:12px;font-weight:700;padding:7px 18px;border-radius:5px;background:rgba(61,232,168,0.12);border:1px solid rgba(61,232,168,0.4);color:var(--accent-green);cursor:pointer;">EXECUTE ACTIONS</button>
     </div>
-    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-main);">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="寄送含會議摘要與行動方案表格的完整郵件草稿給全體與會者"><input type="checkbox" id="dispatch-draft-email" checked> Draft Email</label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="為每筆有效行動方案（有 Owner + Next Check）建立 All-Day 行事曆提醒，開啟前一日通知；同 Owner 同日多筆自動合併"><input type="checkbox" id="dispatch-reminders" checked> Create Outlook Reminders</label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-sub);"><input type="checkbox" disabled> Sync to MS Planner <span style="font-size:10px;color:var(--text-sub);">(尚未支援)</span></label>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--text-main);">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="寄送含會議摘要與行動方案表格的完整郵件草稿給全體與會者"><input type="checkbox" id="dispatch-draft-email" checked style="width:15px;height:15px;accent-color:var(--accent-cyan);cursor:pointer;"> Draft Email</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;" title="為每筆有效行動方案（有 Owner + Next Check）建立 All-Day 行事曆提醒，開啟前一日通知；同 Owner 同日多筆自動合併"><input type="checkbox" id="dispatch-reminders" checked style="width:15px;height:15px;accent-color:var(--accent-cyan);cursor:pointer;"> Create Outlook Reminders</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-sub);font-weight:400;"><input type="checkbox" disabled style="width:15px;height:15px;"> Sync to MS Planner <span style="font-size:10px;color:var(--text-sub);">(尚未支援)</span></label>
     </div>
     <div style="font-size:11px;color:#64748b;margin-top:10px;">Reminders 僅建立行事曆事件（不寄信）；欄位未補全時將擋下整批執行，需補完後才能發送。</div>
     <div id="dispatch-block-msg" style="display:none;margin-top:10px;font-size:12px;border-radius:4px;padding:8px 12px;"></div>
