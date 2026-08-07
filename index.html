@@ -1296,7 +1296,7 @@
                         <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
                     </div>
                     <div class="original-text">${text}</div>
-                    ${isZhOnly ? '' : `<div class="translated-text" style="color:var(--text-sub);font-style:italic;">翻譯中...</div>`}
+                    ${isZhOnly ? '' : `<div class="translated-text" style="color:var(--text-sub);font-style:italic;">排隊等待翻譯...</div>`}
                 `;
                 transcriptEl.appendChild(block);
 
@@ -1312,7 +1312,11 @@
 
                 transcriptEl.scrollTop = transcriptEl.scrollHeight;
 
-                if (!isZhOnly) translateSegment(block, text);
+                // 節流：逐句依序送出翻譯請求，每段間隔 1.2 秒，避免短時間內大量並發呼叫 Groq 撞 TPM 限制
+                if (!isZhOnly) {
+                    await translateSegment(block, text);
+                    await sleep(1200);
+                }
             }
 
         } catch (err) {
@@ -1324,7 +1328,8 @@
     }
 
     // 逐句翻譯：收斂進 Flowise（與即時字幕共用同一個 Tool Agent Chatflow）
-    async function translateSegment(block, text) {
+    // 遇到 429（TPM 超限）時會依錯誤訊息裡的建議等待秒數自動重試，最多重試 2 次
+    async function translateSegment(block, text, retriesLeft = 2) {
         const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
         const translatedEl = block.querySelector('.translated-text');
         if (isZhOnly) {
@@ -1342,7 +1347,23 @@
                     overrideConfig: { sessionId: `upload-translate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
                 })
             });
+
+            if (res.status === 429 && retriesLeft > 0) {
+                const errBody = await res.json().catch(() => ({}));
+                const msg = (errBody && (errBody.message || JSON.stringify(errBody))) || '';
+                const waitMatch = msg.match(/try again in ([\d.]+)s/i);
+                const waitSeconds = waitMatch ? parseFloat(waitMatch[1]) : 5;
+                const el = block.querySelector('.translated-text');
+                if (el) el.textContent = `（TPM 額度已滿，${Math.ceil(waitSeconds)} 秒後自動重試...）`;
+                logAgentThought(`⏳ 翻譯遇到 Groq TPM 限制，等待 ${Math.ceil(waitSeconds)} 秒後自動重試...`);
+                await sleep((waitSeconds + 0.5) * 1000);
+                return translateSegment(block, text, retriesLeft - 1);
+            }
+
             const data = await res.json();
+            if (!res.ok || (data && typeof data === 'object' && data.success === false)) {
+                throw new Error((data && (data.message || data.error)) || `Flowise 回傳異常（HTTP ${res.status}）`);
+            }
             const translated = (typeof data === 'string' ? data : (data.text || data.output || data.answer || '')).trim();
             const el = block.querySelector('.translated-text');
             if (el && translated) {
