@@ -837,7 +837,8 @@
         startBtn.style.display = 'none';
         stopBtn.style.display = 'flex';
         statusIndicator.classList.add('active');
-        document.getElementById('placeholder-transcript').style.display = 'none';
+        const placeholderTranscriptEl = document.getElementById('placeholder-transcript');
+        if (placeholderTranscriptEl) placeholderTranscriptEl.style.display = 'none';
         logAgentThought('🎙️ 開始錄音，啟動麥克風與系統音訊辨識...');
 
         startTime = Date.now();
@@ -963,8 +964,10 @@
         if (isRecording) stopBtn.click();
         statusText.innerText = 'Compiling AI Report...';
         logAgentThought('⚡ 開始產生會議紀錄...');
-        document.getElementById('placeholder-report').style.display = 'none';
-        document.getElementById('placeholder-actions').style.display = 'none';
+        const placeholderReportEl = document.getElementById('placeholder-report');
+        const placeholderActionsEl = document.getElementById('placeholder-actions');
+        if (placeholderReportEl) placeholderReportEl.style.display = 'none';
+        if (placeholderActionsEl) placeholderActionsEl.style.display = 'none';
         reportContent.innerHTML = '<div style="color:var(--text-sub);font-size:12px;animation:pulse 1s infinite;">正在生成報告...</div>';
         actionsContent.innerHTML = '';
         // 收集逐字稿（含說話者名字）
