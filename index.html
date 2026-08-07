@@ -697,13 +697,13 @@
 
 <div class="controls">
     <div class="btn-group-main">
+        <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()">Upload Audio</button>
+        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;">
         <button class="btn btn-primary" id="start-btn">Start Recording</button>
         <button class="btn btn-danger" id="stop-btn"><span class="rec-dot"></span> Stop Recording</button>
         <button class="btn btn-success" id="report-btn">Generate Report</button>
         <button class="btn btn-export" id="export-btn">Export PDF</button>
         <button class="btn btn-export" id="export-txt-btn">Export TXT</button>
-        <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()">Upload Audio</button>
-        <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;">
     </div>
     <button class="btn btn-secondary" id="clear-btn">Clear System Memory</button>
     <!-- Mobile row 2: Clear + PDF/TXT icon buttons -->
