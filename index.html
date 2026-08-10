@@ -1296,7 +1296,6 @@
                         <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
                     </div>
                     <div class="original-text">${text}</div>
-                    ${isZhOnly ? '' : `<div class="translated-text" style="color:var(--text-sub);font-style:italic;">排隊等待翻譯...</div>`}
                 `;
                 transcriptEl.appendChild(block);
 
@@ -1307,16 +1306,12 @@
                 });
 
                 const origEl = block.querySelector('.original-text');
-                const transEl = block.querySelector('.translated-text');
-                if (origEl) makeEditable(origEl, transEl);
+                if (origEl) makeEditable(origEl, null);
 
                 transcriptEl.scrollTop = transcriptEl.scrollHeight;
-
-                // 節流：逐句依序送出翻譯請求，每段間隔 1.2 秒，避免短時間內大量並發呼叫 Groq 撞 TPM 限制
-                if (!isZhOnly) {
-                    await translateSegment(block, text);
-                    await sleep(1200);
-                }
+                // Upload Audio 不逐句即時翻譯：這個路徑的最終目的是後續的 Generate Report / Draft Email / Reminders，
+                // 不是即時雙語對照畫面，逐句翻譯只是白白消耗 Groq TPM 額度，故已移除。
+                // Generate Report 送出時，Flowise 端的 LLM 會直接讀懂原文逐字稿並產生正式報告，不依賴這裡先翻好的譯文。
             }
 
         } catch (err) {
