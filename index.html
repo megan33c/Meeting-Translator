@@ -1497,8 +1497,14 @@
             .filter(s => s.length > 0)
             .map(s => {
                 const emailMatch = s.match(/<([^<>]+@[^<>]+)>/);
-                const email = emailMatch ? emailMatch[1].trim() : '';
-                const name = s.replace(/<[^>]*>/g, '').trim();
+                let email = emailMatch ? emailMatch[1].trim() : '';
+                let name = s.replace(/<[^>]*>/g, '').trim();
+                // 若沒有用 <...> 包住 email，但整段內容本身就是一個 email（例如使用者只貼了 "abc@compal.com"），
+                // 自動判斷並拆分：email 欄位帶入完整地址，姓名欄位改用 @ 前綴，避免標籤直接顯示完整信箱
+                if (!email && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(name)) {
+                    email = name;
+                    name = name.split('@')[0];
+                }
                 return { name, email };
             })
             .filter(entry => entry.name.length > 0 && entry.name.length <= 50);
