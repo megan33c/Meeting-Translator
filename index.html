@@ -649,9 +649,9 @@
 
     <!-- Left: Live Transcript -->
     <div class="panel panel-transcript">
-        <div class="panel-header">
-            <span class="panel-dot"></span>
-            即時逐字稿 · Live Transcript
+        <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span><span class="panel-dot"></span> 即時逐字稿 · Live Transcript</span>
+            <button id="translate-all-btn" style="display:none;font-size:11px;font-weight:600;padding:4px 10px;border-radius:4px;background:rgba(72,200,255,0.12);border:1px solid rgba(72,200,255,0.4);color:var(--accent-cyan);cursor:pointer;">🌐 翻譯全部</button>
         </div>
         <div class="panel-body" id="transcript-area">
             <div class="placeholder" id="placeholder-transcript">
@@ -1247,8 +1247,9 @@
             formData.append('file', pendingAudioFile);
             formData.append('model', 'whisper-large-v3');
             formData.append('response_format', 'verbose_json');
-            formData.append('language', 'zh');
-            formData.append('prompt', `以下是繁體中文會議內容，內容可能包含以下專有名詞或技術縮寫，請維持原文拼寫，不要音譯或更改：${MEETING_GLOSSARY.join('、')}`);
+            // 不強制指定 language，讓 Whisper 自動偵測每段音訊實際使用的語言（中文/英文/中英夾雜皆可），
+            // 避免英文錄音被強制往中文轉錄
+            formData.append('prompt', `會議內容可能包含中文與英文混合，也可能包含以下專有名詞或技術縮寫，請維持原文拼寫，不要音譯或更改：${MEETING_GLOSSARY.join('、')}`);
 
             const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
                 method: 'POST',
@@ -1289,6 +1290,7 @@
                 const block = document.createElement('div');
                 block.className = 'translation-block';
                 block.dataset.speaker = '';
+                block.dataset.source = 'upload';
                 block.innerHTML = `
                     <div class="translation-meta">
                         <span class="translation-time">${startTime}</span>
@@ -1308,9 +1310,14 @@
                 if (origEl) makeEditable(origEl, null);
 
                 transcriptEl.scrollTop = transcriptEl.scrollHeight;
-                // Upload Audio 不逐句即時翻譯：這個路徑的最終目的是後續的 Generate Report / Draft Email / Reminders，
-                // 不是即時雙語對照畫面，逐句翻譯只是白白消耗 Groq TPM 額度，故已移除。
-                // Generate Report 送出時，Flowise 端的 LLM 會直接讀懂原文逐字稿並產生正式報告，不依賴這裡先翻好的譯文。
+                // Upload Audio 預設不自動翻譯：轉錄完只顯示原文。
+                // 若需要雙語對照，可點擊逐字稿面板右上角的「翻譯全部」按鈕手動觸發（見 translateAllUploadedSegments()）。
+            }
+
+            // 轉錄完成後，若有內容，顯示「翻譯全部」按鈕供使用者手動觸發翻譯
+            const translateAllBtn = document.getElementById('translate-all-btn');
+            if (translateAllBtn && segments.length > 0) {
+                translateAllBtn.style.display = 'inline-block';
             }
 
         } catch (err) {
@@ -1323,13 +1330,17 @@
 
     // 逐句翻譯：收斂進 Flowise（與即時字幕共用同一個 Tool Agent Chatflow）
     // 遇到 429（TPM 超限）時會依錯誤訊息裡的建議等待秒數自動重試，最多重試 2 次
+    // 註：此函式目前僅由 Upload Audio 的「翻譯全部」按鈕觸發，不受 MODE 選單控制（MODE 僅影響即時錄音）
     async function translateSegment(block, text, retriesLeft = 2) {
-        const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
-        const translatedEl = block.querySelector('.translated-text');
-        if (isZhOnly) {
-            if (translatedEl) translatedEl.remove();
-            return;
+        let translatedEl = block.querySelector('.translated-text');
+        if (!translatedEl) {
+            translatedEl = document.createElement('div');
+            translatedEl.className = 'translated-text';
+            translatedEl.style.color = 'var(--text-sub)';
+            translatedEl.style.fontStyle = 'italic';
+            block.appendChild(translatedEl);
         }
+        translatedEl.textContent = '翻譯中...';
         try {
             const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
             const res = await fetch(flowiseUrl, {
@@ -1370,6 +1381,38 @@
             if (el) el.textContent = '（翻譯失敗）';
         }
     }
+
+    // ── Upload Audio: 翻譯全部（手動觸發，不受 MODE 控制）──────────────
+    async function translateAllUploadedSegments() {
+        const btn = document.getElementById('translate-all-btn');
+        const blocks = Array.from(document.querySelectorAll('.translation-block[data-source="upload"]'))
+            .filter(b => !b.querySelector('.translated-text'));
+
+        if (blocks.length === 0) {
+            btn.style.display = 'none';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = `翻譯中… (0/${blocks.length})`;
+        logAgentThought(`🌐 開始翻譯 Upload Audio 逐字稿，共 ${blocks.length} 句...`);
+
+        for (let i = 0; i < blocks.length; i++) {
+            const origEl = blocks[i].querySelector('.original-text');
+            const text = origEl ? origEl.textContent.trim() : '';
+            if (text) {
+                await translateSegment(blocks[i], text);
+            }
+            btn.textContent = `翻譯中… (${i + 1}/${blocks.length})`;
+            // 節流：每句間隔 2.5 秒依序送出，避免短時間內大量並發呼叫 Groq 撞 TPM 限制
+            if (i < blocks.length - 1) await sleep(2500);
+        }
+
+        logAgentThought('✅ Upload Audio 逐字稿翻譯完成。');
+        btn.disabled = false;
+        btn.style.display = 'none';
+    }
+    document.getElementById('translate-all-btn').addEventListener('click', translateAllUploadedSegments);
 
     // ── Attendee Management ───────────────────────────────────────────
     let attendees = []; // [{name, email}]
