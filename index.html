@@ -894,22 +894,29 @@
             statusText.innerText = 'Mic Error';
         }
 
-        // 2. 系統音訊辨識（Teams 對方聲音）
+        // 2. 系統音訊辨識（Teams 對方聲音）— 改用 VoiceMeeter B1 虛擬裝置直接擷取，
+        //    不再依賴 getDisplayMedia()（螢幕/分頁分享 API），避免被瀏覽器政策或系統層級限制擋住
         try {
-            systemStream = await navigator.mediaDevices.getDisplayMedia({
-                video: false,
+            // enumerateDevices() 在使用者尚未授權過麥克風權限時，裝置 label 會是空字串，
+            // 上一步的麥克風授權已經解鎖裝置名稱，這裡才抓得到「VoiceMeeter」字樣
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const vmDevice = devices.find(d =>
+                d.kind === 'audioinput' && /voicemeeter|vb-audio/i.test(d.label)
+            );
+
+            if (!vmDevice) {
+                throw new Error('找不到 VoiceMeeter 虛擬裝置，請確認 VoiceMeeter Banana 已開啟，且音訊路由設定正確（詳見 SOP）');
+            }
+
+            systemStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
+                    deviceId: { exact: vmDevice.deviceId },
                     echoCancellation: false,
                     noiseSuppression: false,
-                    sampleRate: 16000
+                    autoGainControl: false
                 }
             });
 
-            const systemConfig = SpeechSDK.AudioConfig.fromStreamInput(
-                SpeechSDK.AudioInputStream.createPushStream()
-            );
-
-            // Connect MediaStream to Azure push stream
             const pushStream = SpeechSDK.AudioInputStream.createPushStream();
             const audioCtx = new AudioContext({ sampleRate: 16000 });
             const source = audioCtx.createMediaStreamSource(systemStream);
@@ -930,19 +937,19 @@
             const sysAudioConfig = SpeechSDK.AudioConfig.fromStreamInput(pushStream);
             recognizerSystem = createRecognizer(sysAudioConfig, 'TEAMS');
             recognizerSystem.startContinuousRecognitionAsync(
-                () => { console.log('Teams audio recognizer started'); },
+                () => { logAgentThought(`✅ 已連接 VoiceMeeter 裝置：${vmDevice.label}`); },
                 (err) => { console.error('System recognizer error:', err); }
             );
 
             systemStream.getAudioTracks()[0].onended = () => {
                 if (isRecording) {
-                    console.log('System audio track ended');
                     statusText.innerText = 'Listening (Mic only)...';
                 }
             };
 
         } catch(e) {
-            console.warn('系統音訊捕捉跳過（使用者取消或不支援）:', e.message);
+            console.warn('VoiceMeeter 系統音訊擷取失敗:', e.message);
+            logAgentThought(`⚠️ 系統音訊（對方聲音）擷取失敗：${e.message}，本次僅辨識麥克風聲音`);
             statusText.innerText = 'Listening (Mic only)...';
         }
     });
@@ -1107,7 +1114,9 @@
     });
 
     // ── Flowise API ───────────────────────────────────────────────────
-    async function sendToFlowise(text, isReportRequest, speakerLabel) {
+    // isReportRequest=false（即時翻譯）路徑遇到 429/偽裝成500的TPM限制時會自動重試（最多2次）；
+    // isReportRequest=true（Generate Report）路徑維持原樣，不自動重試，交給使用者手動重試
+    async function sendToFlowise(text, isReportRequest, speakerLabel, retriesLeft = 2) {
         const isZhOnly = document.getElementById('lang-select').value === 'zh-only';
 
         // zh-only 模式：即時字幕不需要翻譯，直接顯示原文，不呼叫 Flowise（節省 TPM）
@@ -1131,7 +1140,30 @@
                     overrideConfig: { sessionId: isReportRequest ? `report-${Date.now()}` : `live-${Date.now()}-${speakerLabel || 'seg'}` }
                 })
             });
-            const data = await response.json();
+
+            // 判斷是否為 TPM 額度超限：Flowise 有時會把底層 Groq 的 429 包裝成外層 HTTP 500 回傳，
+            // 因此不能只看 response.status === 429，要連同 response body 文字內容一起檢查 rate_limit 關鍵字
+            let errBody = null;
+            let bodyText = '';
+            if (!response.ok) {
+                errBody = await response.json().catch(() => null);
+                bodyText = errBody ? JSON.stringify(errBody) : '';
+            }
+            const isRateLimited = response.status === 429 ||
+                /rate_limit_exceeded|"code":"tokens"|Rate limit reached/i.test(bodyText);
+
+            // 僅即時翻譯路徑（非 Generate Report）自動重試，避免這句翻譯直接遺失
+            if (!isReportRequest && isRateLimited && retriesLeft > 0) {
+                const msg = (errBody && (errBody.message || JSON.stringify(errBody))) || '';
+                const waitMatch = msg.match(/try again in ([\d.]+)s/i);
+                const waitSeconds = waitMatch ? parseFloat(waitMatch[1]) : 5;
+                statusText.innerText = `TPM 額度已滿，${Math.ceil(waitSeconds)}秒後重試...`;
+                logAgentThought(`⏳ 即時翻譯遇到 Groq TPM 限制（HTTP ${response.status}），等待 ${Math.ceil(waitSeconds)} 秒後自動重試...`);
+                await sleep((waitSeconds + 0.5) * 1000);
+                return sendToFlowise(text, isReportRequest, speakerLabel, retriesLeft - 1);
+            }
+
+            const data = errBody !== null ? errBody : await response.json();
 
             // Flowise 後端本身出錯時會回傳 {statusCode, success:false, message} 這種物件，
             // 不能把它當成正常回覆內容顯示（否則會議摘要會直接印出錯誤 JSON）
@@ -1353,19 +1385,29 @@
                 })
             });
 
-            if (res.status === 429 && retriesLeft > 0) {
-                const errBody = await res.json().catch(() => ({}));
+            // 判斷是否為 TPM 額度超限：Flowise 有時會把底層 Groq 的 429 包裝成外層 HTTP 500 回傳，
+            // 因此不能只看 res.status === 429，要連同 response body 文字內容一起檢查 rate_limit 關鍵字
+            let errBody = null;
+            let bodyText = '';
+            if (!res.ok) {
+                errBody = await res.json().catch(() => null);
+                bodyText = errBody ? JSON.stringify(errBody) : '';
+            }
+            const isRateLimited = res.status === 429 ||
+                /rate_limit_exceeded|"code":"tokens"|Rate limit reached/i.test(bodyText);
+
+            if (isRateLimited && retriesLeft > 0) {
                 const msg = (errBody && (errBody.message || JSON.stringify(errBody))) || '';
                 const waitMatch = msg.match(/try again in ([\d.]+)s/i);
                 const waitSeconds = waitMatch ? parseFloat(waitMatch[1]) : 5;
                 const el = block.querySelector('.translated-text');
                 if (el) el.textContent = `（TPM 額度已滿，${Math.ceil(waitSeconds)} 秒後自動重試...）`;
-                logAgentThought(`⏳ 翻譯遇到 Groq TPM 限制，等待 ${Math.ceil(waitSeconds)} 秒後自動重試...`);
+                logAgentThought(`⏳ 翻譯遇到 Groq TPM 限制（HTTP ${res.status}），等待 ${Math.ceil(waitSeconds)} 秒後自動重試...`);
                 await sleep((waitSeconds + 0.5) * 1000);
                 return translateSegment(block, text, retriesLeft - 1);
             }
 
-            const data = await res.json();
+            const data = errBody !== null ? errBody : await res.json();
             if (!res.ok || (data && typeof data === 'object' && data.success === false)) {
                 throw new Error((data && (data.message || data.error)) || `Flowise 回傳異常（HTTP ${res.status}）`);
             }
@@ -1377,8 +1419,9 @@
                 el.style.color = '';
             }
         } catch (e) {
+            console.error('翻譯失敗，詳細錯誤：', e);
             const el = block.querySelector('.translated-text');
-            if (el) el.textContent = '（翻譯失敗）';
+            if (el) el.textContent = '（翻譯失敗，詳見 Console）';
         }
     }
 
@@ -1404,8 +1447,9 @@
                 await translateSegment(blocks[i], text);
             }
             btn.textContent = `翻譯中… (${i + 1}/${blocks.length})`;
-            // 節流：每句間隔 2.5 秒依序送出，避免短時間內大量並發呼叫 Groq 撞 TPM 限制
-            if (i < blocks.length - 1) await sleep(2500);
+            // 節流：每句間隔 5 秒依序送出，套用跟即時錄音相同的安全節奏（Azure 靜音判斷 SegmentationSilenceTimeoutMs=5000ms）。
+            // Upload Audio 沒有即時性需求，用比即時錄音更保守的固定間隔換取更穩的安全邊際是划算的。
+            if (i < blocks.length - 1) await sleep(5000);
         }
 
         logAgentThought('✅ Upload Audio 逐字稿翻譯完成。');
