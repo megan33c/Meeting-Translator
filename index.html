@@ -629,6 +629,32 @@
     </div>
 </div>
 
+<!-- Import Transcript Modal（貼上或上傳現成逐字稿，例如 PLAUD 匯出） -->
+<div id="transcript-import-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:9999;">
+    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)closeTranscriptImportModal()">
+        <div style="background:#0d1424;border:1px solid rgba(72,200,255,0.25);border-radius:12px;padding:28px;width:520px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <div style="font-size:13px;font-weight:700;color:var(--accent-cyan);margin-bottom:4px;">Import Transcript</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:14px;">適用於已有現成逐字稿的情況（例如 PLAUD App 匯出的文字檔）。會跳過 Whisper 語音轉錄，直接建立逐字稿區塊，可再點擊「翻譯全部」進行翻譯。支援 .txt / .srt / .vtt，或直接貼上文字，每行（或每段）視為一句。</div>
+
+            <textarea id="transcript-import-textarea" placeholder="在此貼上逐字稿文字，每行視為一句…" style="width:100%;height:140px;background:#080e1c;border:1px solid rgba(99,118,162,0.25);border-radius:8px;color:var(--text-main);font-size:12px;padding:10px;resize:vertical;box-sizing:border-box;"></textarea>
+
+            <div style="text-align:center;color:#64748b;font-size:11px;margin:10px 0;">— 或 —</div>
+
+            <div id="transcript-import-dropzone" style="border:2px dashed rgba(72,200,255,0.3);border-radius:8px;padding:18px;text-align:center;color:#64748b;font-size:12px;cursor:pointer;"
+                 onclick="document.getElementById('transcript-import-file-input').click()">
+                <div style="font-size:20px;margin-bottom:4px;">📄</div>
+                <div id="transcript-import-filename">點擊選擇逐字稿檔案（.txt / .srt / .vtt）</div>
+            </div>
+            <input type="file" id="transcript-import-file-input" accept=".txt,.srt,.vtt" style="display:none;">
+
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+                <button onclick="closeTranscriptImportModal()" style="padding:7px 14px;border:1px solid rgba(99,118,162,0.25);border-radius:6px;background:transparent;color:#64748b;font-size:11px;cursor:pointer;">取消</button>
+                <button id="transcript-import-confirm-btn" onclick="confirmTranscriptImport()" style="padding:7px 18px;border:1px solid rgba(72,200,255,0.4);border-radius:6px;background:rgba(72,200,255,0.08);color:var(--accent-cyan);font-size:11px;cursor:pointer;font-weight:600;">匯入逐字稿</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Top Notification Layer / 動態干預層（偏題提醒） -->
 <div id="notification-layer" style="display:none;width:100%;max-width:1200px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:4px;padding:10px 16px;margin-bottom:12px;align-items:center;justify-content:space-between;font-size:12px;color:#fbbf24;">
     <span id="notification-layer-text">⚠️ 偏題提醒</span>
@@ -692,6 +718,20 @@
 
 </div>
 
+<!-- Live Outline Panel / 即時會議大綱（錄音中每 10 分鐘自動更新一次） -->
+<div id="live-outline-panel" style="width:100%;max-width:1200px;background:var(--panel-bg-2, var(--panel-bg));border:1px solid var(--border-color);border-radius:4px;margin:0 auto 16px;font-size:11px;">
+    <div id="live-outline-toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;cursor:pointer;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.5px;">
+        <span>🧭 即時會議大綱 · Live Outline <span id="live-outline-updated-at" style="text-transform:none;letter-spacing:0;color:#64748b;font-weight:400;"></span></span>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span id="live-outline-refresh" title="立即更新大綱" style="cursor:pointer;color:var(--accent-cyan);text-transform:none;">🔄 立即更新</span>
+            <span id="live-outline-arrow">▼</span>
+        </div>
+    </div>
+    <div id="live-outline-body" style="display:none;padding:4px 16px 14px;color:#94a3b8;max-height:220px;overflow-y:auto;line-height:1.6;">
+        <div id="live-outline-content" style="color:var(--text-sub);">會議進行中將每 10 分鐘自動摘要一次重點大綱（不影響會議結束後的正式 Generate Report）。</div>
+    </div>
+</div>
+
 <!-- Agent Dispatch Card -->
 <div class="dispatch-card" style="width:100%;max-width:1200px;border-radius:4px;padding:14px 20px;margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -711,6 +751,7 @@
     <div class="btn-group-main">
         <button class="btn btn-export" id="upload-audio-btn" onclick="document.getElementById('audio-file-input').click()">Upload Audio</button>
         <input type="file" id="audio-file-input" accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm" style="display:none;">
+        <button class="btn btn-export" id="import-transcript-btn" onclick="openTranscriptImportModal()" title="貼上或上傳已有的逐字稿文字（例如 PLAUD 匯出），跳過語音轉錄直接進入翻譯／報告流程">Import Transcript</button>
         <button class="btn btn-primary" id="start-btn">Start Recording</button>
         <button class="btn btn-danger" id="stop-btn"><span class="rec-dot"></span> Stop Recording</button>
         <button class="btn btn-success" id="report-btn">Generate Report</button>
@@ -736,6 +777,12 @@
 </div>
 
 <script>
+    // ── Flowise Chatflow Endpoints ───────────────────────────────────────
+    // Tool Agent（llama-3.3-70b-versatile）：Generate Report、Draft Email、Calendar Reminders、偏題判斷（模式二/五，需要工具或較強推理）
+    const FLOWISE_AGENT_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+    // Live Translation（llama-3.1-8b-instant）：即時逐句口譯（模式一，不需要工具，用小模型換取獨立、寬鬆許多的免費層配額）
+    const FLOWISE_TRANSLATE_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/23d29e47-eed7-4b52-a56c-300429c7b44f";
+
     // ── Agent Thought Log ────────────────────────────────────────────
     function logAgentThought(msg) {
         const body = document.getElementById('thought-log-body');
@@ -751,6 +798,86 @@
         b.style.display = opening ? 'block' : 'none';
         document.getElementById('thought-log-arrow').textContent = opening ? '▲' : '▼';
     });
+
+    // ── Live Outline：錄音中每 10 分鐘自動產生滾動式大綱（獨立於 Generate Report）──
+    // 設計重點：每次只送「上次大綱＋新增的逐字稿片段」給 Groq，而不是每次重送整份逐字稿，
+    // 避免會議時間越長、TPM 消耗越大；正式報告仍維持會議結束後由使用者手動點擊 Generate Report。
+    const LIVE_OUTLINE_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
+    let liveOutlineTimer = null;
+    let liveOutlineText = '';
+    let liveOutlineProcessedCount = 0; // 已納入大綱的逐字稿區塊數量（用來只抓「新增」的部分）
+    let liveOutlineUpdating = false;
+
+    document.getElementById('live-outline-toggle').addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'live-outline-refresh') return; // 交給下面的 refresh handler 處理
+        const b = document.getElementById('live-outline-body');
+        const opening = b.style.display === 'none';
+        b.style.display = opening ? 'block' : 'none';
+        document.getElementById('live-outline-arrow').textContent = opening ? '▲' : '▼';
+    });
+
+    document.getElementById('live-outline-refresh').addEventListener('click', (e) => {
+        e.stopPropagation();
+        updateLiveOutline(true);
+    });
+
+    function startLiveOutlineTimer() {
+        stopLiveOutlineTimer();
+        liveOutlineTimer = setInterval(() => updateLiveOutline(false), LIVE_OUTLINE_INTERVAL_MS);
+    }
+
+    function stopLiveOutlineTimer() {
+        if (liveOutlineTimer) {
+            clearInterval(liveOutlineTimer);
+            liveOutlineTimer = null;
+        }
+    }
+
+    async function updateLiveOutline(isManual) {
+        if (liveOutlineUpdating) return; // 避免手動與自動同時觸發重疊呼叫
+        const groqKey = localStorage.getItem('groqApiKey');
+        if (!groqKey) {
+            if (isManual) alert('請先在上方輸入並儲存 Groq API Key！');
+            return;
+        }
+
+        const blocks = Array.from(transcriptArea.querySelectorAll('.translation-block'));
+        const newBlocks = blocks.slice(liveOutlineProcessedCount);
+        let newText = '';
+        newBlocks.forEach(block => {
+            const speaker = block.dataset.speaker || 'UNKNOWN';
+            const original = block.querySelector('.original-text');
+            if (original && original.textContent.trim()) {
+                newText += `[${speaker}] ${original.textContent.trim()}\n`;
+            }
+        });
+
+        if (!newText.trim()) {
+            if (isManual) logAgentThought('🧭 尚無新增逐字稿內容，暫不更新大綱。');
+            return;
+        }
+
+        liveOutlineUpdating = true;
+        const contentEl = document.getElementById('live-outline-content');
+        if (isManual) logAgentThought('🧭 手動觸發即時大綱更新...');
+        try {
+            const result = await callGroq([
+                { role: 'user', content: `你是會議記錄助理，請維護一份會議進行中的「滾動式重點大綱」。\n\n[先前大綱]\n${liveOutlineText || '（尚無，這是第一次更新）'}\n\n[本次新增的逐字稿內容]\n${newText}\n\n請輸出更新後的完整條列式大綱（Markdown「-」條列，繁體中文，需保留先前重點並自然併入新增內容，避免重複；不需要標題、不需要說明文字，直接輸出條列內容）。` }
+            ]);
+            liveOutlineText = result.trim();
+            liveOutlineProcessedCount = blocks.length;
+            contentEl.innerHTML = parseMarkdown(liveOutlineText);
+            const now = new Date();
+            document.getElementById('live-outline-updated-at').textContent =
+                `（最後更新 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}）`;
+            logAgentThought(`🧭 即時大綱已更新（本次納入 ${newBlocks.length} 句新內容）。`);
+        } catch (e) {
+            console.error('即時大綱更新失敗:', e);
+            logAgentThought(`✗ 即時大綱更新失敗：${e.message || e}`);
+        } finally {
+            liveOutlineUpdating = false;
+        }
+    }
 
     // ── Azure Key Management ──────────────────────────────────────────
     let AZURE_KEY = localStorage.getItem('azure_speech_key') || '';
@@ -852,6 +979,7 @@
         const placeholderTranscriptEl = document.getElementById('placeholder-transcript');
         if (placeholderTranscriptEl) placeholderTranscriptEl.style.display = 'none';
         logAgentThought('🎙️ 開始錄音，啟動麥克風與系統音訊辨識...');
+        startLiveOutlineTimer();
 
         startTime = Date.now();
         timerInterval = setInterval(() => {
@@ -958,6 +1086,7 @@
     stopBtn.addEventListener('click', () => {
         isRecording = false;
         logAgentThought('⏹️ 停止錄音。');
+        stopLiveOutlineTimer();
 
         if (recognizerMic) {
             recognizerMic.stopContinuousRecognitionAsync(() => { recognizerMic.close(); recognizerMic = null; });
@@ -1018,13 +1147,19 @@
             }
         }
 
-        const actionItemsSpec = `[SECTION_SPLIT]\n\n[ ] Scope（2~6字分類，例如：展示規劃 / 技術研討 / 成本估算）｜Discussion & AR（具體討論內容與待辦事項）｜Owner（負責人姓名，若逐字稿中無法明確判斷請留空）｜Next Check（追蹤日期，格式 MM/DD，若無法判斷請留空）\n[ ] Scope｜Discussion & AR｜Owner｜Next Check\n\n注意：[SECTION_SPLIT] 必須單獨一行；Action Items 每行以 [ ] 開頭，四個欄位一律以全形「｜」分隔，欄位順序不可改變，無法判斷的欄位請留空但仍保留「｜」分隔符號，不要省略。`;
+        // zh-only 模式：維持單語（4 欄位）Action Items，不產生英文版，節省 TPM
+        const actionItemsSpecZh = `[SECTION_SPLIT]\n\n[ ] Scope（2~6字分類，例如：展示規劃 / 技術研討 / 成本估算）｜Discussion & AR（具體討論內容與待辦事項）｜Owner（負責人姓名，若逐字稿中無法明確判斷請留空）｜Next Check（追蹤日期，格式 MM/DD，若無法判斷請留空）\n[ ] Scope｜Discussion & AR｜Owner｜Next Check\n\n注意：[SECTION_SPLIT] 必須單獨一行；Action Items 每行以 [ ] 開頭，四個欄位一律以全形「｜」分隔，欄位順序不可改變，無法判斷的欄位請留空但仍保留「｜」分隔符號，不要省略。`;
+
+        // 一般模式：中英雙語 Action Items（5 欄位，Discussion & AR 拆成中文＋英文兩欄）
+        const actionItemsSpecBilingual = `[SECTION_SPLIT]\n\n[ ] Scope（2~6字分類，例如：展示規劃 / 技術研討 / 成本估算）｜Discussion & AR 中文（具體討論內容與待辦事項，繁體中文）｜Discussion & AR English（對應的英文翻譯，語意需與中文欄位一致）｜Owner（負責人姓名，若逐字稿中無法明確判斷請留空）｜Next Check（追蹤日期，格式 MM/DD，若無法判斷請留空）\n[ ] Scope｜Discussion & AR 中文｜Discussion & AR English｜Owner｜Next Check\n\n注意：[SECTION_SPLIT] 必須單獨一行；Action Items 每行以 [ ] 開頭，五個欄位一律以全形「｜」分隔，欄位順序不可改變，無法判斷的欄位請留空但仍保留「｜」分隔符號，不要省略。`;
 
         const prompt = sourceText
             ? isZhOnly
-                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpec}`
-                : `【請根據以下會議逐字稿產生正式會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpec}`
-            : `【請產生空白會議紀錄範本，包含會議摘要與 ${actionItemsSpec}】`;
+                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpecZh}`
+                : `【請根據以下會議逐字稿產生正式雙語會議紀錄（繁體中文＋English）】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，先完整輸出繁體中文版本，再完整輸出英文版本，最後輸出雙語 Action Items，不得更改結構、不得省略任一語言版本：\n\n## 會議摘要\n（3~5句說明重點與結論，繁體中文）\n\n## 主要討論事項\n- 討論點（繁體中文）\n\n[SECTION_SPLIT]\n\n## Meeting Summary\n(3-5 sentences summarizing key points and conclusions, in English)\n\n## Key Discussion Points\n- Discussion point (in English)\n\n${actionItemsSpecBilingual}`
+            : isZhOnly
+                ? `【請產生空白會議紀錄範本，包含會議摘要與 ${actionItemsSpecZh}】`
+                : `【請產生空白雙語會議紀錄範本，包含中文會議摘要、[SECTION_SPLIT]、英文 Meeting Summary、${actionItemsSpecBilingual}】`;
 
         lastTranscriptForSchedule = transcriptText;
         await sendToFlowise(prompt, true);
@@ -1111,6 +1246,12 @@
         actionsContent.innerHTML = '<div class="placeholder" style="margin-top:20px;">Action Items<br>將列於此處</div>';
         liveTimer.innerText = '00:00:00';
         if (!isRecording) statusText.innerText = 'Ready';
+
+        // 重置即時大綱狀態，避免下次會議把上一場的大綱與逐字稿位置帶進來
+        liveOutlineText = '';
+        liveOutlineProcessedCount = 0;
+        document.getElementById('live-outline-content').innerHTML = '會議進行中將每 10 分鐘自動摘要一次重點大綱（不影響會議結束後的正式 Generate Report）。';
+        document.getElementById('live-outline-updated-at').textContent = '';
     });
 
     // ── Flowise API ───────────────────────────────────────────────────
@@ -1126,7 +1267,9 @@
             return;
         }
 
-        const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+        // 即時翻譯（模式一）走輕量 8B Chatflow（獨立配額，不與 Generate Report 互搶 TPM）；
+        // Generate Report 需要較強推理與結構化輸出，維持走 Tool Agent（70B）
+        const flowiseUrl = isReportRequest ? FLOWISE_AGENT_URL : FLOWISE_TRANSLATE_URL;
         try {
             const response = await fetch(flowiseUrl, {
                 method: 'POST',
@@ -1360,9 +1503,99 @@
         }
     }
 
-    // 逐句翻譯：收斂進 Flowise（與即時字幕共用同一個 Tool Agent Chatflow）
+    // ── Import Transcript：貼上或上傳現成逐字稿（例如 PLAUD 匯出），跳過 Whisper 直接建立逐字稿區塊 ──
+    let pendingTranscriptImportText = '';
+
+    function openTranscriptImportModal() {
+        document.getElementById('transcript-import-modal').style.display = 'flex';
+    }
+
+    function closeTranscriptImportModal() {
+        document.getElementById('transcript-import-modal').style.display = 'none';
+        document.getElementById('transcript-import-textarea').value = '';
+        document.getElementById('transcript-import-filename').textContent = '點擊選擇逐字稿檔案（.txt / .srt / .vtt）';
+        document.getElementById('transcript-import-file-input').value = '';
+        pendingTranscriptImportText = '';
+    }
+
+    document.getElementById('transcript-import-file-input').addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+        document.getElementById('transcript-import-filename').textContent = `${file.name}　（${(file.size/1024).toFixed(0)} KB）`;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            pendingTranscriptImportText = e.target.result;
+            // 上傳檔案後自動帶入 textarea，讓使用者上傳前仍可預覽／編輯
+            document.getElementById('transcript-import-textarea').value = pendingTranscriptImportText;
+        };
+        reader.readAsText(file);
+    });
+
+    // 去除 SRT/VTT 常見的序號行與時間軸行，只保留純文字內容
+    function stripSubtitleFormatting(raw) {
+        return raw
+            .split(/\r?\n/)
+            .filter(line => {
+                const t = line.trim();
+                if (!t) return false;
+                if (/^\d+$/.test(t)) return false; // SRT 序號行
+                if (/^\d{2}:\d{2}:\d{2}[,.]\d{3}\s*--?>\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/.test(t)) return false; // 時間軸行
+                if (/^WEBVTT/i.test(t)) return false; // VTT 檔頭
+                return true;
+            })
+            .join('\n');
+    }
+
+    function confirmTranscriptImport() {
+        const textareaVal = document.getElementById('transcript-import-textarea').value.trim();
+        const raw = textareaVal || pendingTranscriptImportText;
+        if (!raw || !raw.trim()) { alert('請貼上逐字稿文字，或選擇一個逐字稿檔案！'); return; }
+
+        const cleaned = stripSubtitleFormatting(raw);
+        const lines = cleaned.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+        if (lines.length === 0) { alert('沒有偵測到可匯入的文字內容！'); return; }
+
+        closeTranscriptImportModal();
+
+        const transcriptEl = document.getElementById('transcript-area');
+        const placeholder = transcriptEl.querySelector('.placeholder');
+        if (placeholder) placeholder.remove();
+
+        lines.forEach(text => {
+            const block = document.createElement('div');
+            block.className = 'translation-block';
+            block.dataset.speaker = '';
+            block.dataset.source = 'import';
+            block.innerHTML = `
+                <div class="translation-meta">
+                    <span class="translation-time">匯入</span>
+                    <span class="badge-empty">標記說話者 <span class="badge-chevron">▾</span></span>
+                </div>
+                <div class="original-text">${text.replace(/</g, '&lt;')}</div>
+            `;
+            transcriptEl.appendChild(block);
+
+            const badge = block.querySelector('.badge-empty');
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                buildDropdown(badge, block);
+            });
+
+            const origEl = block.querySelector('.original-text');
+            if (origEl) makeEditable(origEl, null);
+        });
+
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+        const translateAllBtn = document.getElementById('translate-all-btn');
+        if (translateAllBtn) translateAllBtn.style.display = 'inline-block';
+
+        logAgentThought(`📥 已匯入外部逐字稿（例如 PLAUD 匯出），共 ${lines.length} 句，未經過 Whisper 轉錄。可點擊「翻譯全部」進行翻譯，或直接點擊「Generate Report」產生會議紀錄。`);
+    }
+
+    // 逐句翻譯：走輕量 8B Live Translation Chatflow（與即時字幕共用同一個獨立配額）
     // 遇到 429（TPM 超限）時會依錯誤訊息裡的建議等待秒數自動重試，最多重試 2 次
-    // 註：此函式目前僅由 Upload Audio 的「翻譯全部」按鈕觸發，不受 MODE 選單控制（MODE 僅影響即時錄音）
+    // 註：此函式目前由 Upload Audio／Import Transcript 的「翻譯全部」按鈕觸發，不受 MODE 選單控制（MODE 僅影響即時錄音）
     async function translateSegment(block, text, retriesLeft = 2) {
         let translatedEl = block.querySelector('.translated-text');
         if (!translatedEl) {
@@ -1374,8 +1607,7 @@
         }
         translatedEl.textContent = '翻譯中...';
         try {
-            const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
-            const res = await fetch(flowiseUrl, {
+            const res = await fetch(FLOWISE_TRANSLATE_URL, {
                 method: 'POST',
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -1425,10 +1657,10 @@
         }
     }
 
-    // ── Upload Audio: 翻譯全部（手動觸發，不受 MODE 控制）──────────────
+    // ── Upload Audio / Import Transcript: 翻譯全部（手動觸發，不受 MODE 控制）─────
     async function translateAllUploadedSegments() {
         const btn = document.getElementById('translate-all-btn');
-        const blocks = Array.from(document.querySelectorAll('.translation-block[data-source="upload"]'))
+        const blocks = Array.from(document.querySelectorAll('.translation-block[data-source="upload"], .translation-block[data-source="import"]'))
             .filter(b => !b.querySelector('.translated-text'));
 
         if (blocks.length === 0) {
@@ -1438,7 +1670,7 @@
 
         btn.disabled = true;
         btn.textContent = `翻譯中… (0/${blocks.length})`;
-        logAgentThought(`🌐 開始翻譯 Upload Audio 逐字稿，共 ${blocks.length} 句...`);
+        logAgentThought(`🌐 開始翻譯逐字稿，共 ${blocks.length} 句...`);
 
         for (let i = 0; i < blocks.length; i++) {
             const origEl = blocks[i].querySelector('.original-text');
@@ -1674,8 +1906,7 @@
                 translatedEl.classList.add('translating');
                 translatedEl.textContent = '翻譯中...';
                 try {
-                    const flowiseUrl = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
-                    const response = await fetch(flowiseUrl, {
+                    const response = await fetch(FLOWISE_TRANSLATE_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ question: newText })
@@ -1747,11 +1978,16 @@
     // ── Display Report ────────────────────────────────────────────────
     let lastTranscriptForSchedule = '';
     let lastReportRawText = '';
+    let lastReportZhSummary = ''; // 雙語報告中僅中文段落，供 Draft Email／Calendar 使用（不需要雙語）
 
     function displayReport(rawText, transcriptText) {
         lastReportRawText = rawText;
 
         const sections = rawText.split('[SECTION_SPLIT]');
+        // 雙語報告時 sections[0] 為中文摘要段落，sections[1] 為英文段落，最後一段為 Action Items；
+        // Email／Calendar 只需要中文，因此僅取第一段供 dispatchDraftEmail 使用
+        lastReportZhSummary = sections.length > 1 ? sections[0].trim() : rawText;
+
         let summaryHtml = '';
         let actionsRaw = '';
 
@@ -1825,10 +2061,21 @@
             if (!text) return;
 
             const parts = text.split('｜').map(s => s.trim());
-            if (parts.length >= 4) {
+            if (parts.length >= 5) {
+                // 雙語格式：Scope｜Discussion(中)｜Discussion(英)｜Owner｜Next Check
                 parsed.push({
                     scope: parts[0] || '一般',
                     discussion: parts[1] || '',
+                    discussionEn: parts[2] || '',
+                    owner: parts[3] || '',
+                    nextCheck: normalizeNextCheck(parts[4])
+                });
+            } else if (parts.length >= 4) {
+                // zh-only 格式：Scope｜Discussion｜Owner｜Next Check（無英文欄位）
+                parsed.push({
+                    scope: parts[0] || '一般',
+                    discussion: parts[1] || '',
+                    discussionEn: '',
                     owner: parts[2] || '',
                     nextCheck: normalizeNextCheck(parts[3])
                 });
@@ -1838,6 +2085,7 @@
                 parsed.push({
                     scope: '一般',
                     discussion: ownerMatch ? ownerMatch[2] : text,
+                    discussionEn: '',
                     owner: ownerMatch ? ownerMatch[1] : '',
                     nextCheck: ''
                 });
@@ -1862,6 +2110,7 @@
                 usedStoredIdx.add(matchIdx);
                 const s = stored[matchIdx];
                 if (ni.discussion) s.discussion = `${s.discussion}\n[${todayTag}] ${ni.discussion}`;
+                if (ni.discussionEn) s.discussionEn = s.discussionEn ? `${s.discussionEn}\n[${todayTag}] ${ni.discussionEn}` : ni.discussionEn;
                 if (ni.owner) s.owner = ni.owner;
                 if (ni.nextCheck) s.nextCheck = ni.nextCheck;
             } else {
@@ -1870,6 +2119,7 @@
                     no: maxNo,
                     scope: ni.scope,
                     discussion: `[${todayTag}] ${ni.discussion}`,
+                    discussionEn: ni.discussionEn ? `[${todayTag}] ${ni.discussionEn}` : '',
                     owner: ni.owner,
                     nextCheck: ni.nextCheck
                 });
@@ -1964,7 +2214,8 @@
             tr.style.cssText = 'border-top:1px solid var(--border-color);';
             tr.dataset.no = item.no;
 
-            const discussionHtml = (item.discussion || '').replace(/\n/g, '<br>');
+            const discussionHtml = (item.discussion || '').replace(/\n/g, '<br>')
+                + (item.discussionEn ? `<div style="color:var(--text-sub);font-style:italic;font-size:10px;margin-top:3px;">${item.discussionEn.replace(/\n/g, '<br>')}</div>` : '');
 
             const ownerCell = item.owner
                 ? `<td style="padding:6px;">${item.owner}</td>`
@@ -2010,7 +2261,7 @@
     }
 
     // ── Agent Dispatch Card：Draft Email + Create Outlook Reminders ─────
-    const FLOWISE_AGENT_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/d805ef97-9278-45d4-a6a7-41de540a256c";
+    // (FLOWISE_AGENT_URL 已在檔案最上方宣告一次，這裡沿用)
 
     document.getElementById('execute-actions-btn').addEventListener('click', executeAgentDispatch);
 
@@ -2102,7 +2353,8 @@
 
     // Draft Email：完整會議摘要 + Action Items 表格，收件人為全體與會者
     async function dispatchDraftEmail(items) {
-        const cleanedReport = lastReportRawText.replace(/\[SECTION_SPLIT\]/g, '\n\n').replace(/｜/g, ' ｜ ');
+        // Email 不需要雙語，僅使用中文摘要段落（lastReportZhSummary 已在 displayReport 內剝離英文段落）
+        const cleanedReport = (lastReportZhSummary || lastReportRawText).replace(/\[SECTION_SPLIT\]/g, '\n\n').replace(/｜/g, ' ｜ ');
         const attendeeListStr = attendees
             .map(a => a.email ? `${a.name} <${a.email}>` : `${a.name}（無 Email）`)
             .join('；');
