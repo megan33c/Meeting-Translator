@@ -998,17 +998,9 @@
         // 若這裡不指定 deviceId、單純用預設裝置，麥克風辨識器會跟系統音訊辨識器抓到同一個裝置，
         // 導致同一句話被兩邊重複辨識、重複送出翻譯（重複消耗 Groq TPM）。
         try {
-            let preDevices = await navigator.mediaDevices.enumerateDevices();
-            // 若裝置名稱都是空字串，代表這個瀏覽器 session 尚未解鎖過麥克風權限（label 會被隱藏）。
-            // 先用一個無指定裝置的請求解鎖權限，取得後立刻關閉，再重新列舉一次裝置名稱。
-            if (preDevices.some(d => d.kind === 'audioinput') && preDevices.every(d => d.kind !== 'audioinput' || !d.label)) {
-                try {
-                    const unlockStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    unlockStream.getTracks().forEach(t => t.stop());
-                    preDevices = await navigator.mediaDevices.enumerateDevices();
-                } catch (unlockErr) {
-                    console.warn('解鎖裝置名稱失敗:', unlockErr);
-                }
+            const preDevices = await navigator.mediaDevices.enumerateDevices();
+            if (preDevices.some(d => d.kind === 'audioinput' && !d.label)) {
+                logAgentThought('⚠️ 尚未取得裝置名稱權限，麥克風裝置比對可能不準確（通常在瀏覽器重新授權後會恢復正常）。');
             }
             const physicalMic = preDevices.find(d =>
                 d.kind === 'audioinput' && !/voicemeeter|vb-audio|cable/i.test(d.label)
