@@ -993,9 +993,36 @@
         statusText.innerText = 'Connecting...';
 
         // 1. 麥克風辨識（你的聲音）- 使用 getUserMedia 串流
+        // 重要：明確指定「非 VoiceMeeter/VB-Audio」的實體麥克風裝置，不要依賴系統預設輸入裝置。
+        // 原因：SoundSwitch「會議模式」會把 Windows 系統預設錄音裝置也切成 Voicemeeter Out B1，
+        // 若這裡不指定 deviceId、單純用預設裝置，麥克風辨識器會跟系統音訊辨識器抓到同一個裝置，
+        // 導致同一句話被兩邊重複辨識、重複送出翻譯（重複消耗 Groq TPM）。
         try {
+            let preDevices = await navigator.mediaDevices.enumerateDevices();
+            // 若裝置名稱都是空字串，代表這個瀏覽器 session 尚未解鎖過麥克風權限（label 會被隱藏）。
+            // 先用一個無指定裝置的請求解鎖權限，取得後立刻關閉，再重新列舉一次裝置名稱。
+            if (preDevices.some(d => d.kind === 'audioinput') && preDevices.every(d => d.kind !== 'audioinput' || !d.label)) {
+                try {
+                    const unlockStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    unlockStream.getTracks().forEach(t => t.stop());
+                    preDevices = await navigator.mediaDevices.enumerateDevices();
+                } catch (unlockErr) {
+                    console.warn('解鎖裝置名稱失敗:', unlockErr);
+                }
+            }
+            const physicalMic = preDevices.find(d =>
+                d.kind === 'audioinput' && !/voicemeeter|vb-audio|cable/i.test(d.label)
+            );
+            if (!physicalMic) {
+                logAgentThought('⚠️ 找不到明確的實體麥克風裝置，將退回使用系統預設輸入裝置（若系統預設目前是 Voicemeeter，可能導致重複翻譯，請確認 SoundSwitch 設定）。');
+            } else {
+                logAgentThought(`🎙️ 麥克風辨識器已鎖定裝置：${physicalMic.label}`);
+            }
             const micStream = await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                audio: {
+                    ...(physicalMic ? { deviceId: { exact: physicalMic.deviceId } } : {}),
+                    echoCancellation: false, noiseSuppression: false, autoGainControl: false
+                }
             });
             const micPushStream = SpeechSDK.AudioInputStream.createPushStream();
             const micAudioCtx = new AudioContext({ sampleRate: 16000 });
@@ -1205,7 +1232,7 @@
                 'Authorization': `Bearer ${groqKey}`
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: 'openai/gpt-oss-120b', // llama-3.3-70b-versatile 已被 Groq 官方棄用，改用官方建議的替代模型
                 messages: messages,
                 max_tokens: 2048,
                 temperature: 0.3
