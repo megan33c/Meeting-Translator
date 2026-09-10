@@ -567,6 +567,13 @@
             <option value="zh-only">Report Only (No Translation)</option>
         </select>
     </div>
+    <div class="lang-selector-box">
+        <label>音源</label>
+        <select id="audio-source-select" title="視訊會議模式：麥克風＋VoiceMeeter系統音訊分開辨識，適合有遠端與會者、需要抓取電腦播放聲音的會議。會議室模式：只用一支麥克風（建議搭配耳機）收錄全場，適合大家都在同一間會議室、僅主講者外擴的情境，可繞開系統音訊擷取限制，但不會自動區分不同說話者。">
+            <option value="dual">視訊會議模式（麥克風＋系統音分開收）</option>
+            <option value="single">會議室模式（單一麥克風收全場）</option>
+        </select>
+    </div>
     <div class="lang-selector-box" style="flex:1;min-width:200px;">
         <label>Agenda（選填）</label>
         <input type="text" id="agenda-input" placeholder="輸入本次會議主題，用於偏題提醒（留空則不啟用）" style="width:100%;background:var(--panel-bg);border:1px solid var(--border-color);color:var(--text-main);font-size:12px;padding:6px 10px;border-radius:5px;box-sizing:border-box;">
@@ -692,6 +699,7 @@
             <span class="panel-dot"></span>
             會議記錄 · Meeting Report
         </div>
+        <div id="report-meeting-title" style="padding:6px 16px 0;font-size:12px;color:var(--accent-cyan);font-weight:600;"></div>
         <div class="panel-body">
             <div class="report-section" id="report-section">
                 <div class="section-label">
@@ -784,6 +792,32 @@
     const FLOWISE_TRANSLATE_URL = "https://flowise-production-a44d.up.railway.app/api/v1/prediction/23d29e47-eed7-4b52-a56c-300429c7b44f";
 
     // ── Agent Thought Log ────────────────────────────────────────────
+    // Azure Speech SDK 的 push stream 預設格式需要 16kHz 16-bit mono PCM。
+    // 過去程式碼是強制 new AudioContext({sampleRate:16000}) 來源頭就用 16kHz 打開裝置，
+    // 但某些音訊裝置（尤其虛擬裝置／VoiceMeeter 路由變動後）不支援被強制指定成非原生取樣率，
+    // 會直接讓 AudioContext 初始化失敗（"AudioContext encountered an error from the audio device"）。
+    // 改用裝置原生取樣率開啟 AudioContext，再由這個函式手動降頻到 16kHz，避免這個相容性問題。
+    function downsampleTo16kHz(float32Array, inputSampleRate) {
+        if (inputSampleRate === 16000) return float32Array;
+        const ratio = inputSampleRate / 16000;
+        const newLength = Math.round(float32Array.length / ratio);
+        const result = new Float32Array(newLength);
+        let offsetResult = 0;
+        let offsetBuffer = 0;
+        while (offsetResult < newLength) {
+            const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+            let accum = 0, count = 0;
+            for (let i = offsetBuffer; i < nextOffsetBuffer && i < float32Array.length; i++) {
+                accum += float32Array[i];
+                count++;
+            }
+            result[offsetResult] = count > 0 ? accum / count : 0;
+            offsetResult++;
+            offsetBuffer = nextOffsetBuffer;
+        }
+        return result;
+    }
+
     function logAgentThought(msg) {
         const body = document.getElementById('thought-log-body');
         const line = document.createElement('div');
@@ -973,12 +1007,13 @@
 
         isRecording = true;
         langSelect.disabled = true;
+        document.getElementById('audio-source-select').disabled = true;
         startBtn.style.display = 'none';
         stopBtn.style.display = 'flex';
         statusIndicator.classList.add('active');
         const placeholderTranscriptEl = document.getElementById('placeholder-transcript');
         if (placeholderTranscriptEl) placeholderTranscriptEl.style.display = 'none';
-        logAgentThought('🎙️ 開始錄音，啟動麥克風與系統音訊辨識...');
+        logAgentThought('🎙️ 開始錄音...');
         startLiveOutlineTimer();
 
         startTime = Date.now();
@@ -992,19 +1027,33 @@
 
         statusText.innerText = 'Connecting...';
 
+        const audioSourceMode = document.getElementById('audio-source-select').value; // 'dual' 或 'single'
+        logAgentThought(audioSourceMode === 'single'
+            ? '🎧 音源模式：會議室模式（單一麥克風收全場）— 僅啟用麥克風辨識，不擷取系統音訊。'
+            : '🎙️ 音源模式：視訊會議模式（麥克風＋系統音分開收）— 麥克風與系統音訊分開辨識。');
+
         // 1. 麥克風辨識（你的聲音）- 使用 getUserMedia 串流
         // 重要：明確指定「非 VoiceMeeter/VB-Audio」的實體麥克風裝置，不要依賴系統預設輸入裝置。
         // 原因：SoundSwitch「會議模式」會把 Windows 系統預設錄音裝置也切成 Voicemeeter Out B1，
         // 若這裡不指定 deviceId、單純用預設裝置，麥克風辨識器會跟系統音訊辨識器抓到同一個裝置，
         // 導致同一句話被兩邊重複辨識、重複送出翻譯（重複消耗 Groq TPM）。
+        // 會議室模式下，優先挑選名稱含「耳機/headset/headphone」的裝置，
+        // 因為這個模式的設計前提是用耳機麥克風收錄全場（會議室情境），沒有耳機裝置時才退回一般實體麥克風。
         try {
             const preDevices = await navigator.mediaDevices.enumerateDevices();
             if (preDevices.some(d => d.kind === 'audioinput' && !d.label)) {
                 logAgentThought('⚠️ 尚未取得裝置名稱權限，麥克風裝置比對可能不準確（通常在瀏覽器重新授權後會恢復正常）。');
             }
-            const physicalMic = preDevices.find(d =>
+            const nonVirtualMics = preDevices.filter(d =>
                 d.kind === 'audioinput' && !/voicemeeter|vb-audio|cable/i.test(d.label)
             );
+            const headsetMic = nonVirtualMics.find(d => /headset|headphone|耳機|耳麥/i.test(d.label));
+            const physicalMic = audioSourceMode === 'single'
+                ? (headsetMic || nonVirtualMics[0])
+                : nonVirtualMics[0];
+            if (audioSourceMode === 'single' && !headsetMic && nonVirtualMics.length > 0) {
+                logAgentThought('⚠️ 會議室模式：找不到名稱含「耳機/Headset」的裝置，已退回使用一般麥克風，建議確認耳機已正確連接並被系統辨識。');
+            }
             if (!physicalMic) {
                 logAgentThought('⚠️ 找不到明確的實體麥克風裝置，將退回使用系統預設輸入裝置（若系統預設目前是 Voicemeeter，可能導致重複翻譯，請確認 SoundSwitch 設定）。');
             } else {
@@ -1017,11 +1066,12 @@
                 }
             });
             const micPushStream = SpeechSDK.AudioInputStream.createPushStream();
-            const micAudioCtx = new AudioContext({ sampleRate: 16000 });
+            const micAudioCtx = new AudioContext(); // 不強制取樣率，改用裝置原生取樣率避免初始化失敗
             const micSource = micAudioCtx.createMediaStreamSource(micStream);
             const micProcessor = micAudioCtx.createScriptProcessor(4096, 1, 1);
             micProcessor.onaudioprocess = (e) => {
-                const float32 = e.inputBuffer.getChannelData(0);
+                const raw = e.inputBuffer.getChannelData(0);
+                const float32 = downsampleTo16kHz(raw, micAudioCtx.sampleRate);
                 const int16 = new Int16Array(float32.length);
                 for (let i = 0; i < float32.length; i++) {
                     int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
@@ -1043,6 +1093,8 @@
 
         // 2. 系統音訊辨識（Teams 對方聲音）— 改用 VoiceMeeter B1 虛擬裝置直接擷取，
         //    不再依賴 getDisplayMedia()（螢幕/分頁分享 API），避免被瀏覽器政策或系統層級限制擋住
+        //    會議室模式下完全跳過這一段，全場聲音統一由麥克風收錄
+        if (audioSourceMode === 'dual') {
         try {
             // enumerateDevices() 在使用者尚未授權過麥克風權限時，裝置 label 會是空字串，
             // 上一步的麥克風授權已經解鎖裝置名稱，這裡才抓得到「VoiceMeeter」字樣
@@ -1065,12 +1117,13 @@
             });
 
             const pushStream = SpeechSDK.AudioInputStream.createPushStream();
-            const audioCtx = new AudioContext({ sampleRate: 16000 });
+            const audioCtx = new AudioContext(); // 不強制取樣率，改用裝置原生取樣率避免初始化失敗
             const source = audioCtx.createMediaStreamSource(systemStream);
             const processor = audioCtx.createScriptProcessor(4096, 1, 1);
 
             processor.onaudioprocess = (e) => {
-                const float32 = e.inputBuffer.getChannelData(0);
+                const raw = e.inputBuffer.getChannelData(0);
+                const float32 = downsampleTo16kHz(raw, audioCtx.sampleRate);
                 const int16 = new Int16Array(float32.length);
                 for (let i = 0; i < float32.length; i++) {
                     int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
@@ -1099,6 +1152,7 @@
             logAgentThought(`⚠️ 系統音訊（對方聲音）擷取失敗：${e.message}，本次僅辨識麥克風聲音`);
             statusText.innerText = 'Listening (Mic only)...';
         }
+        } // end if audioSourceMode === 'dual'
     });
 
     // ── Stop Recording ────────────────────────────────────────────────
@@ -1119,6 +1173,7 @@
         }
 
         langSelect.disabled = false;
+        document.getElementById('audio-source-select').disabled = false;
         stopBtn.style.display = 'none';
         startBtn.style.display = 'flex';
         statusText.innerText = 'Paused';
@@ -1174,8 +1229,8 @@
 
         const prompt = sourceText
             ? isZhOnly
-                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpecZh}`
-                : `【請根據以下會議逐字稿產生正式雙語會議紀錄（繁體中文＋English）】（${new Date().toISOString()}）\n\n${sourceText}\n\n請嚴格依照以下格式輸出，先完整輸出繁體中文版本，再完整輸出英文版本，最後輸出雙語 Action Items，不得更改結構、不得省略任一語言版本：\n\n## 會議摘要\n（3~5句說明重點與結論，繁體中文）\n\n## 主要討論事項\n- 討論點（繁體中文）\n\n[SECTION_SPLIT]\n\n## Meeting Summary\n(3-5 sentences summarizing key points and conclusions, in English)\n\n## Key Discussion Points\n- Discussion point (in English)\n\n${actionItemsSpecBilingual}`
+                ? `【請根據以下中文會議逐字稿產生正式繁體中文會議紀錄】（${new Date().toISOString()}）\n\n${sourceText}\n\n請先在最開頭輸出一行會議標題，格式為 [MEETING_TITLE]根據會議實際討論內容自訂的標題 - YYYY/MM/DD[/MEETING_TITLE]（標題請具體反映本次會議討論的主題，不要只寫「會議紀錄」這種空泛字樣），換行後再接著輸出以下格式，使用繁體中文，不得更改結構：\n\n## 會議摘要\n（3~5句說明重點與結論）\n\n## 主要討論事項\n- 討論點\n\n${actionItemsSpecZh}`
+                : `【請根據以下會議逐字稿產生正式雙語會議紀錄（繁體中文＋English）】（${new Date().toISOString()}）\n\n${sourceText}\n\n請先在最開頭輸出一行會議標題，格式為 [MEETING_TITLE]根據會議實際討論內容自訂的標題 - YYYY/MM/DD[/MEETING_TITLE]（標題請具體反映本次會議討論的主題，繁體中文，不要只寫「會議紀錄」這種空泛字樣），換行後再接著輸出以下格式，先完整輸出繁體中文版本，再完整輸出英文版本，最後輸出雙語 Action Items，不得更改結構、不得省略任一語言版本：\n\n## 會議摘要\n（3~5句說明重點與結論，繁體中文）\n\n## 主要討論事項\n- 討論點（繁體中文）\n\n[SECTION_SPLIT]\n\n## Meeting Summary\n(3-5 sentences summarizing key points and conclusions, in English)\n\n## Key Discussion Points\n- Discussion point (in English)\n\n${actionItemsSpecBilingual}`
             : isZhOnly
                 ? `【請產生空白會議紀錄範本，包含會議摘要與 ${actionItemsSpecZh}】`
                 : `【請產生空白雙語會議紀錄範本，包含中文會議摘要、[SECTION_SPLIT]、英文 Meeting Summary、${actionItemsSpecBilingual}】`;
@@ -1998,8 +2053,20 @@
     let lastTranscriptForSchedule = '';
     let lastReportRawText = '';
     let lastReportZhSummary = ''; // 雙語報告中僅中文段落，供 Draft Email／Calendar 使用（不需要雙語）
+    let lastMeetingTitle = ''; // AI 產生的會議標題，供 Confluence 發布使用
 
-    function displayReport(rawText, transcriptText) {
+    function displayReport(rawTextWithTitle, transcriptText) {
+        // 先擷取會議標題（[MEETING_TITLE]...[/MEETING_TITLE]），擷取後從原文中移除，
+        // 不影響原本 [SECTION_SPLIT] 的分段邏輯
+        let rawText = rawTextWithTitle;
+        const titleMatch = rawTextWithTitle.match(/\[MEETING_TITLE\](.*?)\[\/MEETING_TITLE\]/s);
+        lastMeetingTitle = titleMatch ? titleMatch[1].trim() : `會議紀錄 - ${new Date().toLocaleDateString('zh-TW')}`;
+        if (titleMatch) {
+            rawText = rawTextWithTitle.replace(titleMatch[0], '').trim();
+        }
+        const titleEl = document.getElementById('report-meeting-title');
+        if (titleEl) titleEl.textContent = lastMeetingTitle;
+
         lastReportRawText = rawText;
 
         const sections = rawText.split('[SECTION_SPLIT]');
